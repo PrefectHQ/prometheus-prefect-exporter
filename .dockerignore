@@ -1,0 +1,7 @@
+**/__pycache__/*
+*test*
+[Dd]ocker*
+.docker*
+.env
+data/
+.git*
