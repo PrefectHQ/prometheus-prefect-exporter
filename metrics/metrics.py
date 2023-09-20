@@ -38,7 +38,7 @@ class PrefectMetrics:
         self.prefect_deployments = Gauge("prefect_deployments_total", "Prefect total deployments")
         self.prefect_info_deployments = Gauge("prefect_info_deployment", "Prefect deployment info",
                                               [
-                                                "created", "flow_id", "id", "is_schedule_active",
+                                                "created", "flow_id", "deployment_id", "is_schedule_active",
                                                 "name", "path", "updated", "work_pool_name",
                                                 "work_queue_name"
                                               ]
@@ -48,7 +48,7 @@ class PrefectMetrics:
         self.prefect_flows = Gauge("prefect_flows_total", "Prefect total flows")
         self.prefect_info_flows = Gauge("prefect_info_flows", "Prefect flow info",
                                         [
-                                          "created", "id", "name", "updated"
+                                          "created", "flow_id", "name", "updated"
                                         ]
                                        )
 
@@ -57,7 +57,7 @@ class PrefectMetrics:
         self.prefect_info_flow_runs = Gauge("prefect_info_flow_runs", "Prefect flow runs info",
                                         [
                                           "created", "deployment_id", "end_time", "flow_id",
-                                          "id", "name", "run_count", "start_time", "state_id",
+                                          "flow_run_id", "name", "run_count", "start_time", "state_id",
                                           "state_name", "total_run_time", "updated", "work_queue_name"
                                         ]
                                        )
@@ -66,8 +66,8 @@ class PrefectMetrics:
         self.prefect_work_pools = Gauge("prefect_work_pools_total", "Prefect total work pools")
         self.prefect_info_work_pools = Gauge("prefect_info_work_pools", "Prefect work pools info",
                                         [
-                                          "created", "default_queue_id", "id", "is_paused",
-                                          "name", "type", "updated"
+                                          "created", "work_queue_id", "work_pool_id", "is_paused",
+                                          "work_pool_name", "type", "updated"
                                         ]
                                        )
 
@@ -75,7 +75,7 @@ class PrefectMetrics:
         self.prefect_work_queues = Gauge("prefect_work_queues_total", "Prefect total work queues")
         self.prefect_info_work_queues = Gauge("prefect_info_work_queues", "Prefect work queues info",
                                         [
-                                          "created", "id", "is_paused", "name", "priority",
+                                          "created", "work_queue_id", "is_paused", "work_queue_name", "priority",
                                           "type", "work_pool_id", "work_pool_name"
                                         ]
                                        )
