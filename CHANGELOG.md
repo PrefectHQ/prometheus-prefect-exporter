@@ -1,3 +1,10 @@
+## [0.1.1](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v0.1.0...v0.1.1) (2023-09-20)
+
+
+### Bug Fixes
+
+* rename labels ([f4184d0](https://github.com/devops-ia/prometheus-prefect-exporter/commit/f4184d0d3cf2fe0085d2f21be8dfeb5946963173))
+
 # [0.1.0](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v0.0.1...v0.1.0) (2023-09-20)
 
 
