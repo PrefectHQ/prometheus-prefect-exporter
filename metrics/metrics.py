@@ -1,6 +1,6 @@
 import time
 
-from prometheus_client import Gauge
+from prometheus_client import Gauge, Info, Enum
 from metrics.admin import PrefectAdmin
 from metrics.deployments import PrefectDeployments
 from metrics.flow_runs import PrefectFlowRuns
@@ -32,7 +32,7 @@ class PrefectMetrics:
         self.url                      = url
 
         # Prefect admin metrics
-        self.prefect_info_admin = Gauge("prefect_info_admin", "Prefect admin info", ["version"])
+        self.prefect_info_admin = Info("prefect_info_admin", "Prefect admin info")
 
         # Prefect deployments metrics
         self.prefect_deployments = Gauge("prefect_deployments_total", "Prefect total deployments")
@@ -54,12 +54,13 @@ class PrefectMetrics:
 
         # Prefect flow_runs metrics
         self.prefect_flow_runs = Gauge("prefect_flow_runs_total", "Prefect total flow runs")
-        self.prefect_info_flow_runs = Gauge("prefect_info_flow_runs", "Prefect flow runs info",
+        self.prefect_info_flow_runs = Enum("prefect_info_flow_runs", "Prefect flow runs info",
                                         [
                                           "created", "deployment_id", "end_time", "flow_id",
                                           "flow_run_id", "name", "run_count", "start_time", "state_id",
-                                          "state_name", "total_run_time", "updated", "work_queue_name"
-                                        ]
+                                          "total_run_time", "updated", "work_queue_name"
+                                        ],
+                                        states=['Completed', 'Cancelled', 'Failed', 'Running']
                                        )
 
         # Prefect work_pools metrics
@@ -89,7 +90,7 @@ class PrefectMetrics:
         admin = PrefectAdmin(self.url, self.headers)
 
         # set admin metrics
-        self.prefect_info_admin.labels(admin.get_admin_info()).set(1)
+        self.prefect_info_admin.info({'prefect_version': admin.get_admin_info()})
 
 
     def get_deployments_metrics(self) -> None:
@@ -154,11 +155,10 @@ class PrefectMetrics:
                 flow_run.get("run_count", "null"),
                 flow_run.get("start_time", "null"),
                 flow_run.get("state_id", "null"),
-                flow_run.get("state_name", "null"),
                 flow_run.get("total_run_time", "null"),
                 flow_run.get("updated", "null"),
                 flow_run.get("work_queue_name", "null")
-            ).set(1)
+            ).state(flow_run.get("state_name", "null"))
 
 
     def get_work_pools_metrics(self) -> None:
