@@ -1,3 +1,10 @@
+## [0.1.2](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v0.1.1...v0.1.2) (2023-09-21)
+
+
+### Bug Fixes
+
+* change flow_runs to Enum metrics ([b77dd7d](https://github.com/devops-ia/prometheus-prefect-exporter/commit/b77dd7d8ea7934b29345f0aa353abaa2df7f7e76))
+
 ## [0.1.1](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v0.1.0...v0.1.1) (2023-09-20)
 
 
