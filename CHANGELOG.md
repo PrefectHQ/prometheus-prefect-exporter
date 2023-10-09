@@ -1,3 +1,10 @@
+# [0.2.0](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v0.1.2...v0.2.0) (2023-10-09)
+
+
+### Features
+
+* improve logging, errors and test registry ([186f8ce](https://github.com/devops-ia/prometheus-prefect-exporter/commit/186f8ce00ebc807b272dfde2b2efd3e57a92c48f))
+
 ## [0.1.2](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v0.1.1...v0.1.2) (2023-09-21)
 
 
