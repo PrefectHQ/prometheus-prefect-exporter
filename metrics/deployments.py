@@ -1,4 +1,6 @@
+import logging
 import requests
+import time
 
 
 class PrefectDeployments:
@@ -6,19 +8,23 @@ class PrefectDeployments:
     PrefectDeployments class for interacting with Prefect's deployments endpoints.
     """
 
-    def __init__(self, url, headers, uri = "deployments") -> None:
+    def __init__(self, url, headers, max_retries, logger, uri = "deployments") -> None:
         """
         Initialize the PrefectDeployments instance.
 
         Args:
             url (str): The URL of the Prefect instance.
             headers (dict): Headers to be included in HTTP requests.
+            max_retries (int): The maximum number of retries for HTTP requests.
+            logger (obj): The logger object.
             uri (str, optional): The URI path for deployments endpoints. Default is "deployments".
 
         """
-        self.headers = headers
-        self.uri     = uri
-        self.url     = url
+        self.headers     = headers
+        self.uri         = uri
+        self.url         = url
+        self.max_retries = max_retries
+        self.logger      = logger
 
 
     def get_deployments_count(self) -> dict:
@@ -30,9 +36,20 @@ class PrefectDeployments:
 
         """
         endpoint = f"{self.url}/{self.uri}/count"
-        resp = requests.post(endpoint, headers=self.headers)
 
-        return resp.json()
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.post(endpoint, headers=self.headers)
+                resp = resp.json()
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        return resp
 
 
     def get_deployments_info(self) -> dict:
@@ -44,6 +61,17 @@ class PrefectDeployments:
 
         """
         endpoint = f"{self.url}/{self.uri}/filter"
-        resp = requests.post(endpoint, headers=self.headers)
 
-        return resp.json()
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.post(endpoint, headers=self.headers)
+                resp = resp.json()
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        return resp
