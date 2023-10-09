@@ -1,4 +1,7 @@
+import logging
 import requests
+import time
+
 from datetime import datetime, timedelta, timezone
 
 
@@ -7,7 +10,7 @@ class PrefectFlowRuns:
     PrefectFlowRuns class for interacting with Prefect's flow runs endpoints.
     """
 
-    def __init__(self, url, headers, offset_minutes, uri = "flow_runs") -> None:
+    def __init__(self, url, headers, max_retries, offset_minutes, logger, uri = "flow_runs") -> None:
         """
         Initialize the PrefectFlowRuns instance.
 
@@ -15,12 +18,16 @@ class PrefectFlowRuns:
             url (str): The URL of the Prefect instance.
             headers (dict): Headers to be included in HTTP requests.
             offset_minutes (int): Time offset in minutes.
+            max_retries (int): The maximum number of retries for HTTP requests.
+            logger (obj): The logger object.
             uri (str, optional): The URI path for flow runs endpoints. Default is "flow_runs".
 
         """
-        self.headers = headers
-        self.uri     = uri
-        self.url     = url
+        self.headers     = headers
+        self.uri         = uri
+        self.url         = url
+        self.max_retries = max_retries
+        self.logger      = logger
 
         # Calculate timestamps for before and after data
         before_data          = datetime.now(timezone.utc)
@@ -38,9 +45,20 @@ class PrefectFlowRuns:
 
         """
         endpoint = f"{self.url}/{self.uri}/count"
-        resp = requests.post(endpoint, headers=self.headers)
 
-        return resp.json()
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.post(endpoint, headers=self.headers)
+                resp = resp.json()
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        return resp
 
 
     def get_flow_runs_info(self) -> dict:
@@ -61,9 +79,20 @@ class PrefectFlowRuns:
                 }
             }
         }
-        resp = requests.post(endpoint, headers=self.headers, json=data)
 
-        return resp.json()
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.post(endpoint, headers=self.headers)
+                resp = resp.json()
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        return resp
 
 
         ## TODO
