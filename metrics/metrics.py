@@ -1,6 +1,5 @@
 import time
 
-from prometheus_client import Gauge, Info, Enum, generate_latest
 from metrics.admin import PrefectAdmin
 from metrics.deployments import PrefectDeployments
 from metrics.flow_runs import PrefectFlowRuns
@@ -17,7 +16,7 @@ class PrefectMetrics:
     """
 
 
-    def __init__(self, url, headers, offset_minutes, polling_interval_seconds, registry, max_retries, logger) -> None:
+    def __init__(self, url, headers, offset_minutes, polling_interval_seconds, max_retries, logger) -> None:
         """
         Initialize the PrefectMetrics instance.
 
@@ -34,33 +33,32 @@ class PrefectMetrics:
         self.offset_minutes           = offset_minutes
         self.polling_interval_seconds = polling_interval_seconds
         self.url                      = url
-        self.registry                 = registry
         self.max_retries              = max_retries
         self.logger                   = logger
 
         # Prefect admin metrics
-        self.prefect_info_admin = Info("prefect_info_admin", "Prefect admin info", registry=self.registry)
+        self.prefect_info_admin = Info("prefect_info_admin", "Prefect admin info")
 
         # Prefect deployments metrics
-        self.prefect_deployments = Gauge("prefect_deployments_total", "Prefect total deployments", registry=self.registry)
+        self.prefect_deployments = Gauge("prefect_deployments_total", "Prefect total deployments")
         self.prefect_info_deployments = Gauge("prefect_info_deployment", "Prefect deployment info",
                                               [
                                                 "created", "flow_id", "deployment_id", "is_schedule_active",
                                                 "name", "path", "updated", "work_pool_name",
                                                 "work_queue_name"
-                                              ], registry=self.registry
+                                              ]
                                              )
 
         # Prefect flows metrics
-        self.prefect_flows = Gauge("prefect_flows_total", "Prefect total flows", registry=self.registry)
+        self.prefect_flows = Gauge("prefect_flows_total", "Prefect total flows")
         self.prefect_info_flows = Gauge("prefect_info_flows", "Prefect flow info",
                                         [
                                           "created", "flow_id", "name", "updated"
-                                        ], registry=self.registry
+                                        ]
                                        )
 
         # Prefect flow_runs metrics
-        self.prefect_flow_runs = Gauge("prefect_flow_runs_total", "Prefect total flow runs", registry=self.registry)
+        self.prefect_flow_runs = Gauge("prefect_flow_runs_total", "Prefect total flow runs")
         self.prefect_info_flow_runs = Enum("prefect_info_flow_runs", "Prefect flow runs info",
                                         [
                                           "created", "deployment_id", "end_time", "flow_id",
@@ -71,25 +69,25 @@ class PrefectMetrics:
                                             'Completed', 'Cancelled', 'Failed', 'Running',
                                             'Scheduled', 'Pending', 'Crashed', 'Cancelling', 'Paused',
                                             'TimedOut'
-                                        ], registry=self.registry
+                                        ]
                                        )
 
         # Prefect work_pools metrics
-        self.prefect_work_pools = Gauge("prefect_work_pools_total", "Prefect total work pools", registry=self.registry)
+        self.prefect_work_pools = Gauge("prefect_work_pools_total", "Prefect total work pools")
         self.prefect_info_work_pools = Gauge("prefect_info_work_pools", "Prefect work pools info",
                                         [
                                           "created", "work_queue_id", "work_pool_id", "is_paused",
                                           "work_pool_name", "type", "updated"
-                                        ], registry=self.registry
+                                        ]
                                        )
 
         # Prefect work_queues metrics
-        self.prefect_work_queues = Gauge("prefect_work_queues_total", "Prefect total work queues", registry=self.registry)
+        self.prefect_work_queues = Gauge("prefect_work_queues_total", "Prefect total work queues")
         self.prefect_info_work_queues = Gauge("prefect_info_work_queues", "Prefect work queues info",
                                         [
                                           "created", "work_queue_id", "is_paused", "work_queue_name", "priority",
                                           "type", "work_pool_id", "work_pool_name"
-                                        ], registry=self.registry
+                                        ]
                                        )
 
 
@@ -182,6 +180,7 @@ class PrefectMetrics:
         # set work_pools metrics
         self.prefect_work_pools.set(len(work_pools.get_work_pools_info()))
         for work_pool in work_pools.get_work_pools_info():
+            state = 0 if work_pool.get("is_paused") else 1
             self.prefect_info_work_pools.labels(
                 work_pool.get("created", "null"),
                 work_pool.get("default_queue_id", "null"),
@@ -190,7 +189,7 @@ class PrefectMetrics:
                 work_pool.get("name", "null"),
                 work_pool.get("type", "null"),
                 work_pool.get("updated", "null")
-            ).set(1)
+            ).set(state)
 
 
     def get_work_queues_metrics(self) -> None:
@@ -203,6 +202,7 @@ class PrefectMetrics:
         # set work_queues metrics
         self.prefect_work_queues.set(len(work_queues.get_work_queues_info()))
         for work_queue in work_queues.get_work_queues_info():
+            state = 0 if work_queue.get("is_paused") else 1
             self.prefect_info_work_queues.labels(
                 work_queue.get("created", "null"),
                 work_queue.get("id", "null"),
@@ -212,7 +212,7 @@ class PrefectMetrics:
                 work_queue.get("type", "null"),
                 work_queue.get("work_pool_id", "null"),
                 work_queue.get("work_pool_name", "null")
-            ).set(1)
+            ).set(state)
 
 
     def run_metrics_loop(self) -> None:
