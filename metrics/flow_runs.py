@@ -49,7 +49,6 @@ class PrefectFlowRuns:
         for retry in range(self.max_retries):
             try:
                 resp = requests.post(endpoint, headers=self.headers)
-                resp = resp.json()
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
@@ -58,7 +57,7 @@ class PrefectFlowRuns:
             else:
                 break
 
-        return resp
+        return resp.json()
 
 
     def get_flow_runs_info(self) -> dict:
@@ -82,8 +81,7 @@ class PrefectFlowRuns:
 
         for retry in range(self.max_retries):
             try:
-                resp = requests.post(endpoint, headers=self.headers)
-                resp = resp.json()
+                resp = requests.post(endpoint, headers=self.headers, json=data)
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
@@ -92,24 +90,4 @@ class PrefectFlowRuns:
             else:
                 break
 
-        return resp
-
-
-        ## TODO
-        # - Review output for properly metric
-        #
-        # def get_flow_runs_history(self) -> dict:
-        #     """
-        #     """
-        #     endpoint = f"{self.url}/{self.uri}/history"
-        #
-        #     data = {
-        #         "history_start": f"{self.after_data_fmt}",
-        #         "history_end": f"{self.before_data_fmt}",
-        #         "history_interval_seconds": 43200,
-        #         "flow_runs": {}
-        #     }
-        #
-        #     resp = requests.post(endpoint, headers=self.headers, json=data)
-        #
-        #     return resp.json()
+        return resp.json()

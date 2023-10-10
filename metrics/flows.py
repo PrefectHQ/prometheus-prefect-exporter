@@ -40,7 +40,6 @@ class PrefectFlows:
         for retry in range(self.max_retries):
             try:
                 resp = requests.post(endpoint, headers=self.headers)
-                resp = resp.json()
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
@@ -49,7 +48,7 @@ class PrefectFlows:
             else:
                 break
 
-        return resp
+        return resp.json()
 
 
     def get_flows_info(self) -> dict:
@@ -65,7 +64,6 @@ class PrefectFlows:
         for retry in range(self.max_retries):
             try:
                 resp = requests.post(endpoint, headers=self.headers)
-                resp = resp.json()
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
@@ -74,4 +72,4 @@ class PrefectFlows:
             else:
                 break
 
-        return resp
+        return resp.json()

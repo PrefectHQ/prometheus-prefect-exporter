@@ -1,23 +1,23 @@
-import logging
 import requests
 import time
 
 
-class PrefectWorkQueues:
+class PrefectHealthz:
     """
-    PrefectWorkQueues class for interacting with Prefect's work queues endpoints.
+    PrefectHealthz class for interacting with Prefect's health endpoints.
     """
 
-    def __init__(self, url, headers, max_retries, logger, uri = "work_queues") -> None:
+
+    def __init__(self, url, headers, max_retries, logger, uri = None) -> None:
         """
-        Initialize the PrefectWorkQueues instance.
+        Initialize the PrefectAdmin instance.
 
         Args:
             url (str): The URL of the Prefect instance.
             headers (dict): Headers to be included in HTTP requests.
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
-            uri (str, optional): The URI path for administrative endpoints. Default is "work_queues".
+            uri (str, optional): The URI path for administrative endpoints. Default is "admin".
 
         """
         self.headers     = headers
@@ -27,20 +27,15 @@ class PrefectWorkQueues:
         self.logger      = logger
 
 
-    def get_work_queues_info(self) -> dict:
+    def get_health_check(self) -> dict:
         """
-        Get information about Prefect's work queues.
-
-        Returns:
-            dict: JSON response containing work queues information.
 
         """
-        endpoint = f"{self.url}/{self.uri}/filter"
+        endpoint = f"{self.url}/health"
 
         for retry in range(self.max_retries):
             try:
-                resp = requests.post(endpoint, headers=self.headers)
-
+                resp = requests.get(endpoint, headers=self.headers)
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
@@ -49,4 +44,5 @@ class PrefectWorkQueues:
             else:
                 break
 
+        self.logger.info(f"Health check response: {resp.status_code}")
         return resp.json()

@@ -7,6 +7,8 @@ from metrics.flow_runs import PrefectFlowRuns
 from metrics.flows import PrefectFlows
 from metrics.work_pools import PrefectWorkPools
 from metrics.work_queues import PrefectWorkQueues
+from metrics.healthz import PrefectHealthz
+from prometheus_client import Gauge, Info, Enum
 
 
 class PrefectMetrics:
@@ -219,11 +221,21 @@ class PrefectMetrics:
 
         """
         while True:
+            # check endpoint
+            PrefectHealthz(
+                url = self.url,
+                headers = self.headers,
+                max_retries = self.max_retries,
+                logger = self.logger
+            ).get_health_check()
+
+            # get metrics
             self.get_admin_metrics()
             self.get_deployments_metrics()
             self.get_flows_metrics()
             self.get_flow_runs_metrics()
             self.get_work_pools_metrics()
             self.get_work_queues_metrics()
-            #print(generate_latest(self.registry).decode('utf-8')) # output expected by Prometheus
+
+            # wait
             time.sleep(self.polling_interval_seconds)

@@ -3,6 +3,11 @@ import logging
 
 from prometheus_client import start_http_server, CollectorRegistry, generate_latest
 from metrics.metrics import PrefectMetrics
+<<<<<<< Updated upstream
+=======
+from metrics.healthz import PrefectHealthz
+from prometheus_client import start_http_server
+>>>>>>> Stashed changes
 
 
 if __name__ == "__main__":
