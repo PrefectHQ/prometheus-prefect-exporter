@@ -1,3 +1,10 @@
+## [0.2.2](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v0.2.1...v0.2.2) (2023-10-10)
+
+
+### Bug Fixes
+
+* add raise_for_status() attribute ([8d20939](https://github.com/devops-ia/prometheus-prefect-exporter/commit/8d2093983f0e502b64e9b2c714338a2fc6152640))
+
 ## [0.2.1](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v0.2.0...v0.2.1) (2023-10-10)
 
 
