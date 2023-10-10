@@ -10,14 +10,14 @@ class PrefectHealthz:
 
     def __init__(self, url, headers, max_retries, logger, uri = None) -> None:
         """
-        Initialize the PrefectAdmin instance.
+        Initialize the PrefectHealthz instance.
 
         Args:
             url (str): The URL of the Prefect instance.
             headers (dict): Headers to be included in HTTP requests.
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
-            uri (str, optional): The URI path for administrative endpoints. Default is "admin".
+            uri (str, optional): The URI path for health endpoint. Default is None.
 
         """
         self.headers     = headers
@@ -36,6 +36,7 @@ class PrefectHealthz:
         for retry in range(self.max_retries):
             try:
                 resp = requests.get(endpoint, headers=self.headers)
+                resp.raise_for_status()
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
@@ -44,5 +45,4 @@ class PrefectHealthz:
             else:
                 break
 
-        self.logger.info(f"Health check response: {resp.status_code}")
         return resp.json()

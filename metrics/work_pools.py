@@ -40,6 +40,7 @@ class PrefectWorkPools:
         for retry in range(self.max_retries):
             try:
                 resp = requests.post(endpoint, headers=self.headers)
+                resp.raise_for_status()
 
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)

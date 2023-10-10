@@ -39,6 +39,7 @@ class PrefectDeployments:
         for retry in range(self.max_retries):
             try:
                 resp = requests.post(endpoint, headers=self.headers)
+                resp.raise_for_status()
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
@@ -63,6 +64,7 @@ class PrefectDeployments:
         for retry in range(self.max_retries):
             try:
                 resp = requests.post(endpoint, headers=self.headers)
+                resp.raise_for_status()
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
