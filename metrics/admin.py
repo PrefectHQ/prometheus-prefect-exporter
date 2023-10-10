@@ -40,7 +40,6 @@ class PrefectAdmin:
         for retry in range(self.max_retries):
             try:
                 resp = requests.get(endpoint, headers=self.headers)
-                resp = resp.json()
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
@@ -49,4 +48,4 @@ class PrefectAdmin:
             else:
                 break
 
-        return resp
+        return resp.json()
