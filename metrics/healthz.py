@@ -27,8 +27,12 @@ class PrefectHealthz:
         self.logger      = logger
 
 
-    def get_health_check(self) -> dict:
+    def get_health_check(self) -> None:
         """
+        Get status about Prefect flows.
+
+        Returns:
+            None.
 
         """
         endpoint = f"{self.url}/health"
@@ -37,6 +41,7 @@ class PrefectHealthz:
             try:
                 resp = requests.get(endpoint, headers=self.headers)
                 resp.raise_for_status()
+                self.logger.info(f"Prefect health check: {resp.status_code} - {resp.reason}")
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
@@ -44,5 +49,3 @@ class PrefectHealthz:
                     raise SystemExit(err)
             else:
                 break
-
-        return resp.json()

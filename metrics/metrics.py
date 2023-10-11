@@ -44,8 +44,7 @@ class PrefectMetrics:
         self.prefect_info_deployments = Gauge("prefect_info_deployment", "Prefect deployment info",
                                               [
                                                 "created", "flow_id", "deployment_id", "is_schedule_active",
-                                                "name", "path", "updated", "work_pool_name",
-                                                "work_queue_name"
+                                                "name", "path", "work_pool_name", "work_queue_name"
                                               ]
                                              )
 
@@ -53,7 +52,7 @@ class PrefectMetrics:
         self.prefect_flows = Gauge("prefect_flows_total", "Prefect total flows")
         self.prefect_info_flows = Gauge("prefect_info_flows", "Prefect flow info",
                                         [
-                                          "created", "flow_id", "name", "updated"
+                                          "created", "flow_id", "name"
                                         ]
                                        )
 
@@ -63,12 +62,11 @@ class PrefectMetrics:
                                         [
                                           "created", "deployment_id", "end_time", "flow_id",
                                           "flow_run_id", "name", "run_count", "start_time", "state_id",
-                                          "total_run_time", "updated", "work_queue_name"
+                                          "total_run_time", "work_queue_name"
                                         ],
                                         states=[
-                                            'Completed', 'Cancelled', 'Failed', 'Running',
-                                            'Scheduled', 'Pending', 'Crashed', 'Cancelling', 'Paused',
-                                            'TimedOut'
+                                            "Completed", "Cancelled", "Failed", "Running", "Scheduled",
+                                            "Pending", "Crashed", "Cancelling", "Paused", "TimedOut"
                                         ]
                                        )
 
@@ -77,7 +75,7 @@ class PrefectMetrics:
         self.prefect_info_work_pools = Gauge("prefect_info_work_pools", "Prefect work pools info",
                                         [
                                           "created", "work_queue_id", "work_pool_id", "is_paused",
-                                          "work_pool_name", "type", "updated"
+                                          "work_pool_name", "type"
                                         ]
                                        )
 
@@ -119,7 +117,6 @@ class PrefectMetrics:
                 deployment.get("is_schedule_active", "null"),
                 deployment.get("name", "null"),
                 deployment.get("path", "null"),
-                deployment.get("updated", "null"),
                 deployment.get("work_pool_name", "null"),
                 deployment.get("work_queue_name", "null")
             ).set(1)
@@ -138,8 +135,7 @@ class PrefectMetrics:
             self.prefect_info_flows.labels(
               flow.get("created", "null"),
               flow.get("id", "null"),
-              flow.get("name", "null"),
-              flow.get("updated", "null")
+              flow.get("name", "null")
             ).set(1)
 
 
@@ -151,7 +147,6 @@ class PrefectMetrics:
         flow_runs = PrefectFlowRuns(self.url, self.headers, self.max_retries, self.offset_minutes, self.logger)
 
         # set flows metrics
-        #flow_runs.get_flow_runs_history()
         self.prefect_flow_runs.set(flow_runs.get_flow_runs_count())
         for flow_run in flow_runs.get_flow_runs_info():
             self.prefect_info_flow_runs.labels(
@@ -165,7 +160,6 @@ class PrefectMetrics:
                 flow_run.get("start_time", "null"),
                 flow_run.get("state_id", "null"),
                 flow_run.get("total_run_time", "null"),
-                flow_run.get("updated", "null"),
                 flow_run.get("work_queue_name", "null")
             ).state(flow_run.get("state_name", "null"))
 
@@ -187,8 +181,7 @@ class PrefectMetrics:
                 work_pool.get("id", "null"),
                 work_pool.get("is_paused", "null"),
                 work_pool.get("name", "null"),
-                work_pool.get("type", "null"),
-                work_pool.get("updated", "null")
+                work_pool.get("type", "null")
             ).set(state)
 
 
@@ -220,15 +213,16 @@ class PrefectMetrics:
         Metrics fetching loop
 
         """
-        while True:
-            # check endpoint
-            PrefectHealthz(
-                url = self.url,
-                headers = self.headers,
-                max_retries = self.max_retries,
-                logger = self.logger
-            ).get_health_check()
+        # check endpoint
+        PrefectHealthz(
+            url = self.url,
+            headers = self.headers,
+            max_retries = self.max_retries,
+            logger = self.logger
+        ).get_health_check()
 
+
+        while True:
             # get metrics
             self.get_admin_metrics()
             self.get_deployments_metrics()

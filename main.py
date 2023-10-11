@@ -11,12 +11,12 @@ if __name__ == "__main__":
     """
 
     # Get environment variables or use default values
-    metrics_port             = int(os.getenv("METRICS_PORT", "8000"))
+    loglevel                 = str(os.getenv("LOG_LEVEL", "INFO"))
     max_retries              = int(os.getenv("MAX_RETRIES", "3"))
+    metrics_port             = int(os.getenv("METRICS_PORT", "8000"))
     offset_minutes           = int(os.getenv("OFFSET_MINUTES", "5"))
     polling_interval_seconds = int(os.getenv("POLLING_INTERVAL_SECONDS", "30"))
-    url                      = str(os.getenv("PREFECT_API_URL", "https://app.prefect.cloud/api"))
-    loglevel                 = str(os.getenv("LOG_LEVEL", "INFO"))
+    url                      = str(os.getenv("PREFECT_API_URL", "https://localhost/api"))
 
     # Configure logging
     logging.basicConfig(level=loglevel, format='%(asctime)s - %(name)s - [%(levelname)s] %(message)s')

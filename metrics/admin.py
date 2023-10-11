@@ -27,7 +27,7 @@ class PrefectAdmin:
         self.logger      = logger
 
 
-    def get_admin_info(self):
+    def get_admin_info(self) -> dict:
         """
         Get information about the Prefect admin.
 

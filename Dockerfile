@@ -14,5 +14,5 @@ RUN python -m pip install --upgrade pip --no-cache-dir && \
 COPY ["./", "./"]
 
 EXPOSE 8000
-
+USER nobody
 CMD [ "python", "main.py" ]
