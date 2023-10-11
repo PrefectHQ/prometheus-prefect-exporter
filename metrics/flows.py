@@ -74,3 +74,28 @@ class PrefectFlows:
                 break
 
         return resp.json()
+
+
+    def get_flows_name(self, flow_id) -> str:
+        """
+        Get name Prefect flows.
+
+        Returns:
+            dict: JSON response containing name flows.
+
+        """
+        endpoint = f"{self.url}/{self.uri}/{flow_id}"
+
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.get(endpoint, headers=self.headers)
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        return resp.json().get("name", "null")

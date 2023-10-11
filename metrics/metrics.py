@@ -60,8 +60,8 @@ class PrefectMetrics:
         self.prefect_flow_runs = Gauge("prefect_flow_runs_total", "Prefect total flow runs")
         self.prefect_info_flow_runs = Enum("prefect_info_flow_runs", "Prefect flow runs info",
                                         [
-                                          "created", "deployment_id", "end_time", "flow_id",
-                                          "flow_run_id", "name", "run_count", "start_time", "state_id",
+                                          "created", "deployment_id", "deployment_name", "end_time", "flow_id",
+                                          "flow_name", "flow_run_id", "name", "run_count", "start_time", "state_id",
                                           "total_run_time", "work_queue_name"
                                         ],
                                         states=[
@@ -149,11 +149,34 @@ class PrefectMetrics:
         # set flows metrics
         self.prefect_flow_runs.set(flow_runs.get_flow_runs_count())
         for flow_run in flow_runs.get_flow_runs_info():
+            # get deployment name
+            if flow_run.get("deployment_id") is None:
+                deployment_name = "null"
+            else:
+                deployment_name = PrefectDeployments(
+                                    self.url,
+                                    self.headers,
+                                    self.max_retries,
+                                    self.logger
+                                ).get_deployments_name(flow_run.get("deployment_id"))
+            # get flow name
+            if flow_run.get("flow_id") is None:
+                flow_name = "null"
+            else:
+                flow_name = PrefectFlows(
+                                    self.url,
+                                    self.headers,
+                                    self.max_retries,
+                                    self.logger
+                                ).get_flows_name(flow_run.get("flow_id"))
+
             self.prefect_info_flow_runs.labels(
                 flow_run.get("created", "null"),
                 flow_run.get("deployment_id", "null"),
+                deployment_name,
                 flow_run.get("end_time", "null"),
                 flow_run.get("flow_id", "null"),
+                flow_name,
                 flow_run.get("id", "null"),
                 flow_run.get("name", "null"),
                 flow_run.get("run_count", "null"),
