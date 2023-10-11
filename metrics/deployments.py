@@ -74,3 +74,28 @@ class PrefectDeployments:
                 break
 
         return resp.json()
+
+
+    def get_deployments_name(self, deployment_id) -> str:
+        """
+        Get name Prefect deployments.
+
+        Returns:
+            dict: JSON response containing name deployments.
+
+        """
+        endpoint = f"{self.url}/{self.uri}/{deployment_id}"
+
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.get(endpoint, headers=self.headers)
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        return resp.json().get("name", "null")
