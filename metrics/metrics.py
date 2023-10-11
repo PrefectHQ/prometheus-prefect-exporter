@@ -44,7 +44,7 @@ class PrefectMetrics:
         self.prefect_info_deployments = Gauge("prefect_info_deployment", "Prefect deployment info",
                                               [
                                                 "created", "flow_id", "deployment_id", "is_schedule_active",
-                                                "name", "path", "work_pool_name", "work_queue_name"
+                                                "deployment_name", "path", "work_pool_name", "work_queue_name"
                                               ]
                                              )
 
@@ -52,7 +52,7 @@ class PrefectMetrics:
         self.prefect_flows = Gauge("prefect_flows_total", "Prefect total flows")
         self.prefect_info_flows = Gauge("prefect_info_flows", "Prefect flow info",
                                         [
-                                          "created", "flow_id", "name"
+                                          "created", "flow_id", "flow_name"
                                         ]
                                        )
 
@@ -61,7 +61,7 @@ class PrefectMetrics:
         self.prefect_info_flow_runs = Enum("prefect_info_flow_runs", "Prefect flow runs info",
                                         [
                                           "created", "deployment_id", "deployment_name", "end_time", "flow_id",
-                                          "flow_name", "flow_run_id", "name", "run_count", "start_time", "state_id",
+                                          "flow_name", "flow_run_id", "flow_run_name", "run_count", "start_time", "state_id",
                                           "total_run_time", "work_queue_name"
                                         ],
                                         states=[
