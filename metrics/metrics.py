@@ -43,7 +43,7 @@ class PrefectMetrics:
         self.prefect_deployments = Gauge("prefect_deployments_total", "Prefect total deployments")
         self.prefect_info_deployments = Gauge("prefect_info_deployment", "Prefect deployment info",
                                               [
-                                                "created", "flow_id", "deployment_id", "is_schedule_active",
+                                                "created", "flow_id", "flow_name", "deployment_id", "is_schedule_active",
                                                 "deployment_name", "path", "work_pool_name", "work_queue_name"
                                               ]
                                              )
@@ -110,9 +110,21 @@ class PrefectMetrics:
         # set deployments metrics
         self.prefect_deployments.set(deployments.get_deployments_count())
         for deployment in deployments.get_deployments_info():
+            # get flow name
+            if deployment.get("flow_id") is None:
+                flow_name = "null"
+            else:
+                flow_name = PrefectFlows(
+                                    self.url,
+                                    self.headers,
+                                    self.max_retries,
+                                    self.logger
+                                ).get_flows_name(deployment.get("flow_id"))
+
             self.prefect_info_deployments.labels(
                 deployment.get("created", "null"),
                 deployment.get("flow_id", "null"),
+                flow_name,
                 deployment.get("id", "null"),
                 deployment.get("is_schedule_active", "null"),
                 deployment.get("name", "null"),
@@ -233,7 +245,7 @@ class PrefectMetrics:
 
     def run_metrics_loop(self) -> None:
         """
-        Metrics fetching loop
+        Metrics infinite loop
 
         """
         # check endpoint
