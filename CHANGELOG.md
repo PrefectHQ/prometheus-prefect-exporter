@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.0.0...v1.1.0) (2023-10-11)
+
+
+### Features
+
+* add deployment name and flow name on flow runs metrics ([830b4d3](https://github.com/devops-ia/prometheus-prefect-exporter/commit/830b4d3c1fc00b4e7d4b765fd303664f804ebf51))
+
 # [1.0.0](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v0.2.2...v1.0.0) (2023-10-11)
 
 
