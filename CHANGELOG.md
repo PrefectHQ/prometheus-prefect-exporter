@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.1.1...v1.1.2) (2023-10-11)
+
+
+### Bug Fixes
+
+* add new label on deployments metrics ([9a40887](https://github.com/devops-ia/prometheus-prefect-exporter/commit/9a40887ac7ef13d23ea96f363dd90a8f98d5749a))
+
 ## [1.1.1](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.1.0...v1.1.1) (2023-10-11)
 
 
