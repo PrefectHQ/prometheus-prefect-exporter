@@ -58,15 +58,11 @@ class PrefectMetrics:
 
         # Prefect flow_runs metrics
         self.prefect_flow_runs = Gauge("prefect_flow_runs_total", "Prefect total flow runs")
-        self.prefect_info_flow_runs = Enum("prefect_info_flow_runs", "Prefect flow runs info",
+        self.prefect_info_flow_runs = Gauge("prefect_info_flow_runs", "Prefect flow runs info",
                                         [
                                           "created", "deployment_id", "deployment_name", "end_time", "flow_id",
                                           "flow_name", "flow_run_id", "flow_run_name", "run_count", "start_time", "state_id",
-                                          "total_run_time", "work_queue_name"
-                                        ],
-                                        states=[
-                                            "Completed", "Cancelled", "Failed", "Running", "Scheduled",
-                                            "Pending", "Crashed", "Cancelling", "Paused", "TimedOut"
+                                          "state_name", "total_run_time", "work_queue_name"
                                         ]
                                        )
 
@@ -182,6 +178,9 @@ class PrefectMetrics:
                                     self.logger
                                 ).get_flows_name(flow_run.get("flow_id"))
 
+            # set state
+            state = 0 if flow_run.get("state_name") != "Running" else 1
+
             self.prefect_info_flow_runs.labels(
                 flow_run.get("created", "null"),
                 flow_run.get("deployment_id", "null"),
@@ -194,9 +193,10 @@ class PrefectMetrics:
                 flow_run.get("run_count", "null"),
                 flow_run.get("start_time", "null"),
                 flow_run.get("state_id", "null"),
+                flow_run.get("state_name", "null"),
                 flow_run.get("total_run_time", "null"),
                 flow_run.get("work_queue_name", "null")
-            ).state(flow_run.get("state_name", "null"))
+            ).set(state)
 
 
     def get_work_pools_metrics(self) -> None:
