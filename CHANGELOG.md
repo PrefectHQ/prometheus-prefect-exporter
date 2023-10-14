@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.1.2...v1.1.3) (2023-10-14)
+
+
+### Bug Fixes
+
+* use Gauge instead Enum on flow runs ([f94abcc](https://github.com/devops-ia/prometheus-prefect-exporter/commit/f94abcce33de516138ed2902ecc5c0a0df035385))
+
 ## [1.1.2](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.1.1...v1.1.2) (2023-10-11)
 
 
