@@ -1,8 +1,10 @@
 import os
 import logging
+import time
 
 from metrics.metrics import PrefectMetrics
-from prometheus_client import start_http_server
+from metrics.healthz import PrefectHealthz
+from prometheus_client import start_http_server, REGISTRY, generate_latest
 
 
 if __name__ == "__main__":
@@ -15,7 +17,7 @@ if __name__ == "__main__":
     max_retries              = int(os.getenv("MAX_RETRIES", "3"))
     metrics_port             = int(os.getenv("METRICS_PORT", "8000"))
     offset_minutes           = int(os.getenv("OFFSET_MINUTES", "5"))
-    polling_interval_seconds = int(os.getenv("POLLING_INTERVAL_SECONDS", "30"))
+    polling_interval_seconds = int(os.getenv("POLLING_INTERVAL_SECONDS", "60"))
     url                      = str(os.getenv("PREFECT_API_URL", "https://localhost/api"))
 
     # Configure logging
@@ -28,6 +30,14 @@ if __name__ == "__main__":
         'Content-Type': 'application/json',
     }
 
+    # check endpoint
+    PrefectHealthz(
+        url = url,
+        headers = headers,
+        max_retries = max_retries,
+        logger = logger
+    ).get_health_check()
+
     # Create an instance of the PrefectMetrics class
     metrics = PrefectMetrics(
         polling_interval_seconds = polling_interval_seconds,
@@ -38,11 +48,16 @@ if __name__ == "__main__":
         logger = logger
     )
 
+    # Register the metrics with Prometheus
+    logger.info(f"Inizializing metrics...")
+    REGISTRY.register(metrics)
+    generate_latest(REGISTRY)
+
     # Start the HTTP server to expose Prometheus metrics
     start_http_server(metrics_port)
-
-    # Log the port the exporter is listening on
     logger.info(f"Exporter listening on port :{metrics_port}")
 
     # Run the loop to collect Prefect metrics
-    metrics.run_metrics_loop()
+    while True:
+        # wait
+        time.sleep(polling_interval_seconds)
