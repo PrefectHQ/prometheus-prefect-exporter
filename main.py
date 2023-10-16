@@ -4,7 +4,7 @@ import time
 
 from metrics.metrics import PrefectMetrics
 from metrics.healthz import PrefectHealthz
-from prometheus_client import start_http_server, REGISTRY, generate_latest
+from prometheus_client import start_http_server, REGISTRY
 
 
 if __name__ == "__main__":
