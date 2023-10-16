@@ -1,12 +1,8 @@
-import time
-
-from metrics.admin import PrefectAdmin
 from metrics.deployments import PrefectDeployments
 from metrics.flow_runs import PrefectFlowRuns
 from metrics.flows import PrefectFlows
 from metrics.work_pools import PrefectWorkPools
 from metrics.work_queues import PrefectWorkQueues
-from prometheus_client import Info
 from prometheus_client.core import GaugeMetricFamily
 
 
