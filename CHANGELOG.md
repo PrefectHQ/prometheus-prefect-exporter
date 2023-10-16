@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.2.0...v1.2.1) (2023-10-16)
+
+
+### Bug Fixes
+
+* remove admin class ([b7427dd](https://github.com/devops-ia/prometheus-prefect-exporter/commit/b7427dd1f4d52f1267e8ba66f45605cb00b51db3))
+
 # [1.2.0](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.1.3...v1.2.0) (2023-10-16)
 
 
