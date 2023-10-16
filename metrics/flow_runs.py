@@ -35,31 +35,6 @@ class PrefectFlowRuns:
         self.after_data_fmt  = after_data.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-    def get_flow_runs_count(self) -> dict:
-        """
-        Get the count of flow runs.
-
-        Returns:
-            dict: JSON response containing the count of flow runs.
-
-        """
-        endpoint = f"{self.url}/{self.uri}/count"
-
-        for retry in range(self.max_retries):
-            try:
-                resp = requests.post(endpoint, headers=self.headers)
-                resp.raise_for_status()
-            except requests.exceptions.HTTPError as err:
-                self.logger.error(err)
-                if retry >= self.max_retries - 1:
-                    time.sleep(1)
-                    raise SystemExit(err)
-            else:
-                break
-
-        return resp.json()
-
-
     def get_flow_runs_info(self) -> dict:
         """
         Get information about flow runs within a specified time range.

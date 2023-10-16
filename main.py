@@ -51,7 +51,6 @@ if __name__ == "__main__":
     # Register the metrics with Prometheus
     logger.info(f"Inizializing metrics...")
     REGISTRY.register(metrics)
-    generate_latest(REGISTRY)
 
     # Start the HTTP server to expose Prometheus metrics
     start_http_server(metrics_port)
