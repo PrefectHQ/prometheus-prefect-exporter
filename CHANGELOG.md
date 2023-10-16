@@ -1,3 +1,11 @@
+# [1.2.0](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.1.3...v1.2.0) (2023-10-16)
+
+
+### Features
+
+* reduce functions and calls to API ([94968f7](https://github.com/devops-ia/prometheus-prefect-exporter/commit/94968f77d8edb449b59b37001f9e0ec4e48cdcb3))
+* use REGISTRY to save metrics ([8bd1a5b](https://github.com/devops-ia/prometheus-prefect-exporter/commit/8bd1a5b2648787f0ac3bb7cf37e394f3c655a9b0))
+
 ## [1.1.3](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.1.2...v1.1.3) (2023-10-14)
 
 
