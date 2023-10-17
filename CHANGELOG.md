@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.2.1...v1.2.2) (2023-10-17)
+
+
+### Bug Fixes
+
+* clean code ([7a3d105](https://github.com/devops-ia/prometheus-prefect-exporter/commit/7a3d105235c9ba6020df8f111bc2cf88905a7ffa))
+
 ## [1.2.1](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.2.0...v1.2.1) (2023-10-16)
 
 
