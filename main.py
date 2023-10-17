@@ -17,7 +17,6 @@ if __name__ == "__main__":
     max_retries              = int(os.getenv("MAX_RETRIES", "3"))
     metrics_port             = int(os.getenv("METRICS_PORT", "8000"))
     offset_minutes           = int(os.getenv("OFFSET_MINUTES", "5"))
-    polling_interval_seconds = int(os.getenv("POLLING_INTERVAL_SECONDS", "60"))
     url                      = str(os.getenv("PREFECT_API_URL", "https://localhost/api"))
 
     # Configure logging
@@ -40,7 +39,6 @@ if __name__ == "__main__":
 
     # Create an instance of the PrefectMetrics class
     metrics = PrefectMetrics(
-        polling_interval_seconds = polling_interval_seconds,
         url = url,
         headers = headers,
         offset_minutes = offset_minutes,
@@ -58,5 +56,4 @@ if __name__ == "__main__":
 
     # Run the loop to collect Prefect metrics
     while True:
-        # wait
-        time.sleep(polling_interval_seconds)
+        time.sleep(5)

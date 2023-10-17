@@ -11,7 +11,7 @@ class PrefectMetrics(object):
     PrefectMetrics class for collecting and exposing Prometheus metrics related to Prefect.
     """
 
-    def __init__(self, url, headers, offset_minutes, polling_interval_seconds, max_retries, logger) -> None:
+    def __init__(self, url, headers, offset_minutes, max_retries, logger) -> None:
         """
         Initialize the PrefectMetrics instance.
 
@@ -19,14 +19,12 @@ class PrefectMetrics(object):
             url (str): The URL of the Prefect instance.
             headers (dict): Headers to be included in HTTP requests.
             offset_minutes (int): Time offset in minutes.
-            polling_interval_seconds (int): The polling interval in seconds.
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
 
         """
         self.headers                  = headers
         self.offset_minutes           = offset_minutes
-        self.polling_interval_seconds = polling_interval_seconds
         self.url                      = url
         self.max_retries              = max_retries
         self.logger                   = logger

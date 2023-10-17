@@ -29,9 +29,7 @@ class PrefectFlowRuns:
         self.logger      = logger
 
         # Calculate timestamps for before and after data
-        before_data          = datetime.now(timezone.utc)
-        self.before_data_fmt = before_data.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-        after_data           = before_data - timedelta(minutes=offset_minutes)
+        after_data           = datetime.now(timezone.utc) - timedelta(minutes=offset_minutes)
         self.after_data_fmt  = after_data.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
@@ -48,7 +46,6 @@ class PrefectFlowRuns:
             "flow_runs": {
                 "operator": "and_",
                 "start_time": {
-                    "before_": f"{self.before_data_fmt}",
                     "after_": f"{self.after_data_fmt}"
                 }
             }
