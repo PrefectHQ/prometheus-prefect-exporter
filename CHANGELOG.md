@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.2.3...v1.2.4) (2023-10-19)
+
+
+### Bug Fixes
+
+* urllib3 CVE-2023-45803 CVE-2023-45084 ([dc76aa6](https://github.com/devops-ia/prometheus-prefect-exporter/commit/dc76aa6885cae9047ea4a5d7d6e05b6f11fe23ab))
+
 ## [1.2.3](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.2.2...v1.2.3) (2023-10-19)
 
 
