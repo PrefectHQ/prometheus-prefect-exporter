@@ -4,8 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-prometheus-client = "*"
-requests = "*"
+prometheus-client = "==0.17.*"
+requests = "==2.31.*"
+urllib3 = "==2.0.7"
 
 [dev-packages]
 
