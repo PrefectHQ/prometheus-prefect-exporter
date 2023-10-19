@@ -25,7 +25,6 @@ Can modify environment variables to change the behavior of the exporter.
 | `MAX_RETRIES` | Number of retries to attempt when fetching metrics from Prefect API | `3` |
 | `METRICS_PORT` | Port to expose metrics on | `8000` |
 | `OFFSET_MINUTES` | Number of minutes to offset the start time when fetching metrics from Prefect API | `5` |
-| `POLLING_INTERVAL_SECONDS` | Number of seconds to wait between polling Prefect API for metrics | `30` |
 | `PREFECT_API_URL` | Prefect API URL | `https://localhost/api` |
 
 ## Local build and running

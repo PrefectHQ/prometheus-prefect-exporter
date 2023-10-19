@@ -15,4 +15,5 @@ COPY ["./", "./"]
 
 EXPOSE 8000
 USER nobody
+
 CMD [ "python", "main.py" ]
