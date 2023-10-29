@@ -23,7 +23,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "10.1.1"
+      "version": "10.1.5"
     },
     {
       "type": "panel",
@@ -155,7 +155,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "10.1.1",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
@@ -219,7 +219,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "10.1.1",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
@@ -288,7 +288,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "10.1.1",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
@@ -352,7 +352,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "10.1.1",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
@@ -417,7 +417,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "10.1.1",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
@@ -3130,7 +3130,7 @@
           }
         ]
       },
-      "pluginVersion": "10.1.1",
+      "pluginVersion": "10.1.5",
       "targets": [
         {
           "datasource": {
@@ -3676,6 +3676,6 @@
   "timezone": "browser",
   "title": "Prefect / Platform Overview",
   "uid": "prefect-platform-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": "monday"
 }
