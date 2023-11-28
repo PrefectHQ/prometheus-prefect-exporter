@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.2.4...v1.3.0) (2023-11-28)
+
+
+### Features
+
+* add prefect_flow_runs_total_run_time metric ([1a8a118](https://github.com/devops-ia/prometheus-prefect-exporter/commit/1a8a1180b925da81dcbd0fab695883108a6a11ad))
+
 ## [1.2.4](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.2.3...v1.2.4) (2023-10-19)
 
 
