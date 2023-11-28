@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.3.0...v1.3.1) (2023-11-28)
+
+
+### Bug Fixes
+
+* added flow_run_name label ([a2f96b8](https://github.com/devops-ia/prometheus-prefect-exporter/commit/a2f96b8c602df97a7d0825407d2bbc7d4ad4aab0))
+
 # [1.3.0](https://github.com/devops-ia/prometheus-prefect-exporter/compare/v1.2.4...v1.3.0) (2023-11-28)
 
 
