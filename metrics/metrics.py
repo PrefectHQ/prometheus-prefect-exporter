@@ -118,6 +118,33 @@ class PrefectMetrics(object):
         prefect_flow_runs.add_metric([], len(flow_runs))
         yield prefect_flow_runs
 
+        # prefect_flow_runs_total_run_time metric
+        prefect_flow_runs_total_run_time = GaugeMetricFamily("prefect_flow_runs_total_run_time", "Prefect flow-run total run time in seconds", labels=[
+                                          "flow_id", "flow_name"
+                                        ]
+                                      )
+
+        for flow_run in flow_runs:
+            # get deployment name
+            if flow_run.get("deployment_id") is None:
+                deployment_name = "null"
+            else:
+                deployment_name = next((deployment.get("name") for deployment in deployments if flow_run.get("deployment_id") == deployment.get("id")), "null")
+
+            # get flow name
+            if flow_run.get("flow_id") is None:
+                flow_name = "null"
+            else:
+                flow_name = next((flow.get("name") for flow in flows if flow.get("id") == flow_run.get("flow_id")), "null")
+
+            prefect_flow_runs_total_run_time.add_metric(
+                [
+                  str(flow_run.get("flow_id", "null")),
+                  str(flow_name),
+                ], str(flow_run.get("total_run_time", "null")))
+
+        yield prefect_flow_runs_total_run_time
+
         # prefect_info_flow_runs metric
         prefect_info_flow_runs = GaugeMetricFamily("prefect_info_flow_runs", "Prefect flow runs info",
                                         labels=[
