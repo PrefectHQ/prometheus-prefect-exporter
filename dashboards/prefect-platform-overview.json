@@ -172,6 +172,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -198,135 +199,7 @@
         "x": 4,
         "y": 1
       },
-      "id": 47,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.1.5",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "sum(prefect_flows_total)",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Flows total",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 8,
-        "y": 1
-      },
-      "id": 48,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.1.5",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "sum(prefect_flows_total)",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Flows total",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 12,
-        "y": 1
-      },
-      "id": 1,
+      "id": 52,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -387,7 +260,72 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 16,
+        "x": 8,
+        "y": 1
+      },
+      "id": 20,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.1.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(prefect_info_flow_runs == 1)",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Flow Runs running",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
         "y": 1
       },
       "id": 50,
@@ -510,8 +448,8 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 4,
-        "x": 20,
+        "w": 8,
+        "x": 16,
         "y": 1
       },
       "id": 21,
@@ -709,71 +647,6 @@
               }
             ]
           },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 8,
-        "y": 6
-      },
-      "id": 20,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.1.5",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "count(prefect_info_flow_runs == 1)",
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Flow Runs running",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 0,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
           "unit": "s"
         },
         "overrides": []
@@ -781,7 +654,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 12,
+        "x": 8,
         "y": 6
       },
       "id": 49,
@@ -845,7 +718,7 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 16,
+        "x": 12,
         "y": 6
       },
       "id": 51,
@@ -924,8 +797,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "red",
-                    "value": null
+                    "color": "red"
                   },
                   {
                     "color": "orange",
@@ -944,7 +816,7 @@
             "h": 7,
             "w": 2,
             "x": 0,
-            "y": 12
+            "y": 20
           },
           "id": 26,
           "options": {
@@ -995,8 +867,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "red",
-                    "value": null
+                    "color": "red"
                   },
                   {
                     "color": "green",
@@ -1012,7 +883,7 @@
             "h": 7,
             "w": 2,
             "x": 2,
-            "y": 12
+            "y": 20
           },
           "id": 15,
           "options": {
@@ -1056,7 +927,7 @@
             "h": 7,
             "w": 20,
             "x": 4,
-            "y": 12
+            "y": 20
           },
           "id": 38,
           "options": {
@@ -1110,8 +981,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1291,7 +1161,7 @@
             "h": 6,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 27
           },
           "id": 25,
           "interval": "1m",
@@ -1445,8 +1315,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1543,7 +1412,7 @@
             "h": 6,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 27
           },
           "id": 42,
           "interval": "1m",
@@ -1603,8 +1472,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1866,8 +1734,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.width",
-                    "value": null
+                    "id": "custom.width"
                   }
                 ]
               },
@@ -1878,8 +1745,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.width",
-                    "value": null
+                    "id": "custom.width"
                   }
                 ]
               },
@@ -1890,8 +1756,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.width",
-                    "value": null
+                    "id": "custom.width"
                   }
                 ]
               },
@@ -1913,7 +1778,7 @@
             "h": 6,
             "w": 12,
             "x": 0,
-            "y": 25
+            "y": 33
           },
           "id": 46,
           "interval": "1m",
@@ -2104,8 +1969,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2202,7 +2066,7 @@
             "h": 6,
             "w": 12,
             "x": 12,
-            "y": 25
+            "y": 33
           },
           "id": 27,
           "interval": "1m",
@@ -2267,8 +2131,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "red",
-                    "value": null
+                    "color": "red"
                   },
                   {
                     "color": "green",
@@ -2284,7 +2147,7 @@
             "h": 7,
             "w": 4,
             "x": 0,
-            "y": 13
+            "y": 21
           },
           "id": 39,
           "options": {
@@ -2328,7 +2191,7 @@
             "h": 7,
             "w": 20,
             "x": 4,
-            "y": 13
+            "y": 21
           },
           "id": 40,
           "options": {
@@ -2382,8 +2245,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2563,7 +2425,7 @@
             "h": 6,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 28
           },
           "id": 41,
           "interval": "1m",
@@ -2717,8 +2579,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2815,7 +2676,7 @@
             "h": 6,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 28
           },
           "id": 24,
           "interval": "1m",
@@ -2875,8 +2736,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3138,8 +2998,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.width",
-                    "value": null
+                    "id": "custom.width"
                   }
                 ]
               },
@@ -3150,8 +3009,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.width",
-                    "value": null
+                    "id": "custom.width"
                   }
                 ]
               },
@@ -3162,8 +3020,7 @@
                 },
                 "properties": [
                   {
-                    "id": "custom.width",
-                    "value": null
+                    "id": "custom.width"
                   }
                 ]
               },
@@ -3185,7 +3042,7 @@
             "h": 6,
             "w": 12,
             "x": 0,
-            "y": 26
+            "y": 34
           },
           "id": 43,
           "interval": "1m",
@@ -3376,8 +3233,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3474,7 +3330,7 @@
             "h": 6,
             "w": 12,
             "x": 12,
-            "y": 26
+            "y": 34
           },
           "id": 44,
           "interval": "1m",
@@ -3590,6 +3446,10 @@
               {
                 "id": "unit",
                 "value": "s"
+              },
+              {
+                "id": "custom.width",
+                "value": 316
               }
             ]
           },
@@ -3685,7 +3545,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 85
+                "value": 201
               }
             ]
           },
@@ -3697,7 +3557,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 248
+                "value": 447
               }
             ]
           }
@@ -3848,8 +3708,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               }
@@ -3873,7 +3732,7 @@
             "h": 10,
             "w": 24,
             "x": 0,
-            "y": 53
+            "y": 61
           },
           "id": 12,
           "options": {
@@ -3988,8 +3847,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               }
@@ -4072,7 +3930,7 @@
             "h": 10,
             "w": 24,
             "x": 0,
-            "y": 31
+            "y": 39
           },
           "id": 11,
           "options": {
@@ -4279,6 +4137,6 @@
   "timezone": "browser",
   "title": "Prefect / Platform Overview",
   "uid": "prefect-platform-overview",
-  "version": 3,
+  "version": 4,
   "weekStart": "monday"
 }
