@@ -9,7 +9,7 @@ name: Build and publish prometheus-prefect-exporter image
 permissions: {}
 
 jobs:
-  build-push-exporter:
+  build_push_exporter:
     permissions:
       # required to clone repository
       contents: read
