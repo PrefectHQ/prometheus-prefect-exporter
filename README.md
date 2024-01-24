@@ -18,6 +18,8 @@ docker run -d \
 ## Configuration
 
 Can modify environment variables to change the behavior of the exporter.
+An API Key is necessary specifically for auth-enabled, on-prem, self-hosted solutions. 
+An API key is not necessary for open-source or Prefect Server to function.
 
 | Environment Variable | Description | Default |
 | --- | --- | --- |
