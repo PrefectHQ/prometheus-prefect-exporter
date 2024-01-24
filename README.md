@@ -26,6 +26,7 @@ Can modify environment variables to change the behavior of the exporter.
 | `METRICS_PORT` | Port to expose metrics on | `8000` |
 | `OFFSET_MINUTES` | Number of minutes to offset the start time when fetching metrics from Prefect API | `5` |
 | `PREFECT_API_URL` | Prefect API URL | `https://localhost/api` |
+| `PREFECT_API_KEY` | Prefect API KEY (Optional) | `""` |
 
 ## Local build and running
 

@@ -18,6 +18,7 @@ if __name__ == "__main__":
     metrics_port             = int(os.getenv("METRICS_PORT", "8000"))
     offset_minutes           = int(os.getenv("OFFSET_MINUTES", "5"))
     url                      = str(os.getenv("PREFECT_API_URL", "https://localhost/api"))
+    api_key                  = str(os.getenv("PREFECT_API_KEY", ""))
 
     # Configure logging
     logging.basicConfig(level=loglevel, format='%(asctime)s - %(name)s - [%(levelname)s] %(message)s')
@@ -26,8 +27,11 @@ if __name__ == "__main__":
     # Configure headers for HTTP requests
     headers = {
         'accept': 'application/json',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
     }
+
+    if api_key:
+        headers['Authorization'] = f"Bearer {api_key}"
 
     # check endpoint
     PrefectHealthz(
