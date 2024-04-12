@@ -64,3 +64,31 @@ class PrefectFlowRuns:
                 break
 
         return resp.json()
+
+    def get_all_flow_runs_info(self) -> dict:
+        """
+        Get information about all flow runs.
+
+        Returns:
+            dict: JSON response containing flow runs information.
+        """
+        endpoint = f"{self.url}/{self.uri}/filter"
+        data = {
+            "flow_runs": {
+                "operator": "and_",
+            }
+        }
+
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.post(endpoint, headers=self.headers, json=data)
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        return resp.json()
