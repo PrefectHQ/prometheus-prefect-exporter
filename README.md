@@ -12,7 +12,7 @@ By default `prometheus-prefect-exporter` will listen on port `8000`.
 docker run -d \
   -p 8000:8000 \
   -e PREFECT_API_URL=<PREFECT_ENDPOINT> \
-  devopsia/prometheus-prefect-exporter:latest
+  prefecthq/prometheus-prefect-exporter:latest
 ```
 
 ## Configuration
@@ -40,7 +40,7 @@ Pre-requisites:
 Running:
 
 ```bash
-git clone https://github.com/devops-ia/prometheus-prefect-exporter.git
+git clone https://github.com/PrefectHQ/prometheus-prefect-exporter.git
 cd prometheus-prefect-exporter
 pipenv sync
 pipenv shell
