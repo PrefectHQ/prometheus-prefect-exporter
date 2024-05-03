@@ -5,11 +5,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY ["./Pipfile", "./Pipfile.lock", "./"]
+COPY ["requirements.txt", "./"]
 
-RUN python -m pip install --upgrade pip --no-cache-dir && \
-    pip install --no-cache-dir pipenv && \
-    pipenv sync --clear --system
+RUN pip install uv
+RUN uv venv
+RUN uv pip install --system -r requirements.txt
 
 COPY ["./", "./"]
 
