@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY ./ ./
 
+RUN pip install --upgrade pip
 RUN pip install \
       --disable-pip-version-check \
       --no-cache-dir \
