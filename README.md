@@ -1,6 +1,6 @@
 # Prometheus Prefect Exporter
 
-A Prometheus exporter for [Prefect](https://www.prefect.io/) metrics, written in Python.
+A Prometheus exporter for [Prefect](https://www.prefect.io/) metrics, written in Python. Originally contributed by @ialejandro!
 
 ## Usage
 
