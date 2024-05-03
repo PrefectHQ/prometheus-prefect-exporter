@@ -7,8 +7,7 @@ class PrefectWorkPools:
     PrefectWorkPools class for interacting with Prefect's work pools endpoints.
     """
 
-
-    def __init__(self, url, headers, max_retries, logger, uri = "work_pools") -> None:
+    def __init__(self, url, headers, max_retries, logger, uri="work_pools") -> None:
         """
         Initialize the PrefectWorkPools instance.
 
@@ -20,12 +19,11 @@ class PrefectWorkPools:
             uri (str, optional): The URI path for administrative endpoints. Default is "work_pools".
 
         """
-        self.headers     = headers
-        self.uri         = uri
-        self.url         = url
+        self.headers = headers
+        self.uri = uri
+        self.url = url
         self.max_retries = max_retries
-        self.logger      = logger
-
+        self.logger = logger
 
     def get_work_pools_info(self) -> dict:
         """

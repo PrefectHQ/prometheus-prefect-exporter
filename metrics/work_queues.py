@@ -7,7 +7,7 @@ class PrefectWorkQueues:
     PrefectWorkQueues class for interacting with Prefect's work queues endpoints.
     """
 
-    def __init__(self, url, headers, max_retries, logger, uri = "work_queues") -> None:
+    def __init__(self, url, headers, max_retries, logger, uri="work_queues") -> None:
         """
         Initialize the PrefectWorkQueues instance.
 
@@ -19,12 +19,11 @@ class PrefectWorkQueues:
             uri (str, optional): The URI path for administrative endpoints. Default is "work_queues".
 
         """
-        self.headers     = headers
-        self.uri         = uri
-        self.url         = url
+        self.headers = headers
+        self.uri = uri
+        self.url = url
         self.max_retries = max_retries
-        self.logger      = logger
-
+        self.logger = logger
 
     def get_work_queues_info(self) -> dict:
         """
