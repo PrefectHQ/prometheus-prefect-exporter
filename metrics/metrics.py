@@ -78,6 +78,7 @@ class PrefectMetrics(object):
                 "path",
                 "work_pool_name",
                 "work_queue_name",
+                "status"
             ],
         )
 
@@ -106,6 +107,7 @@ class PrefectMetrics(object):
                     str(deployment.get("path", "null")),
                     str(deployment.get("work_pool_name", "null")),
                     str(deployment.get("work_queue_name", "null")),
+                    str(deployment.get("status", "null")),
                 ],
                 1,
             )
@@ -293,6 +295,7 @@ class PrefectMetrics(object):
                 "is_paused",
                 "work_pool_name",
                 "type",
+                "status"
             ],
         )
 
@@ -306,6 +309,7 @@ class PrefectMetrics(object):
                     str(work_pool.get("is_paused", "null")),
                     str(work_pool.get("name", "null")),
                     str(work_pool.get("type", "null")),
+                    str(work_pool.get("status", "null")),
                 ],
                 state,
             )
@@ -336,6 +340,7 @@ class PrefectMetrics(object):
                 "type",
                 "work_pool_id",
                 "work_pool_name",
+                "status"
             ],
         )
 
@@ -351,6 +356,7 @@ class PrefectMetrics(object):
                     str(work_queue.get("type", "null")),
                     str(work_queue.get("work_pool_id", "null")),
                     str(work_queue.get("work_pool_name", "null")),
+                    str(work_queue.get("status", "null")),
                 ],
                 state,
             )
