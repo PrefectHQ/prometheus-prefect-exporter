@@ -58,6 +58,6 @@ jobs:
         run: |
           gh workflow run prometheus-exporter-helm-release.yaml \
               --repo=prefecthq/prefect-helm \
-              --ref=main 
+              --ref=main
         env: 
           GITHUB_TOKEN: ${{ secrets.PREFECT_HELM_ACTIONS_RW }}
