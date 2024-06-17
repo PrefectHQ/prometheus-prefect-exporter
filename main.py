@@ -13,45 +13,41 @@ if __name__ == "__main__":
     """
 
     # Get environment variables or use default values
-    loglevel                 = str(os.getenv("LOG_LEVEL", "INFO"))
-    max_retries              = int(os.getenv("MAX_RETRIES", "3"))
-    metrics_port             = int(os.getenv("METRICS_PORT", "8000"))
-    offset_minutes           = int(os.getenv("OFFSET_MINUTES", "5"))
-    url                      = str(os.getenv("PREFECT_API_URL", "https://localhost/api"))
-    api_key                  = str(os.getenv("PREFECT_API_KEY", ""))
+    loglevel = str(os.getenv("LOG_LEVEL", "INFO"))
+    max_retries = int(os.getenv("MAX_RETRIES", "3"))
+    metrics_port = int(os.getenv("METRICS_PORT", "8000"))
+    offset_minutes = int(os.getenv("OFFSET_MINUTES", "5"))
+    url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
+    api_key = str(os.getenv("PREFECT_API_KEY", ""))
 
     # Configure logging
-    logging.basicConfig(level=loglevel, format='%(asctime)s - %(name)s - [%(levelname)s] %(message)s')
+    logging.basicConfig(
+        level=loglevel, format="%(asctime)s - %(name)s - [%(levelname)s] %(message)s"
+    )
     logger = logging.getLogger("prometheus-prefect-exporter")
 
     # Configure headers for HTTP requests
-    headers = {
-        'accept': 'application/json',
-        'Content-Type': 'application/json'
-    }
+    headers = {"accept": "application/json", "Content-Type": "application/json"}
 
     if api_key:
-        headers['Authorization'] = f"Bearer {api_key}"
+        headers["Authorization"] = f"Bearer {api_key}"
 
     # check endpoint
     PrefectHealthz(
-        url = url,
-        headers = headers,
-        max_retries = max_retries,
-        logger = logger
+        url=url, headers=headers, max_retries=max_retries, logger=logger
     ).get_health_check()
 
     # Create an instance of the PrefectMetrics class
     metrics = PrefectMetrics(
-        url = url,
-        headers = headers,
-        offset_minutes = offset_minutes,
-        max_retries = max_retries,
-        logger = logger
+        url=url,
+        headers=headers,
+        offset_minutes=offset_minutes,
+        max_retries=max_retries,
+        logger=logger,
     )
 
     # Register the metrics with Prometheus
-    logger.info(f"Inizializing metrics...")
+    logger.info("Initializing metrics...")
     REGISTRY.register(metrics)
 
     # Start the HTTP server to expose Prometheus metrics

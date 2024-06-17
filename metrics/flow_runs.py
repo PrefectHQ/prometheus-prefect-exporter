@@ -9,7 +9,9 @@ class PrefectFlowRuns:
     PrefectFlowRuns class for interacting with Prefect's flow runs endpoints.
     """
 
-    def __init__(self, url, headers, max_retries, offset_minutes, logger, uri = "flow_runs") -> None:
+    def __init__(
+        self, url, headers, max_retries, offset_minutes, logger, uri="flow_runs"
+    ) -> None:
         """
         Initialize the PrefectFlowRuns instance.
 
@@ -22,16 +24,15 @@ class PrefectFlowRuns:
             uri (str, optional): The URI path for flow runs endpoints. Default is "flow_runs".
 
         """
-        self.headers     = headers
-        self.uri         = uri
-        self.url         = url
+        self.headers = headers
+        self.uri = uri
+        self.url = url
         self.max_retries = max_retries
-        self.logger      = logger
+        self.logger = logger
 
         # Calculate timestamps for before and after data
-        after_data           = datetime.now(timezone.utc) - timedelta(minutes=offset_minutes)
-        self.after_data_fmt  = after_data.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-
+        after_data = datetime.now(timezone.utc) - timedelta(minutes=offset_minutes)
+        self.after_data_fmt = after_data.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
     def get_flow_runs_info(self) -> dict:
         """
@@ -45,9 +46,7 @@ class PrefectFlowRuns:
         data = {
             "flow_runs": {
                 "operator": "and_",
-                "start_time": {
-                    "after_": f"{self.after_data_fmt}"
-                }
+                "start_time": {"after_": f"{self.after_data_fmt}"},
             }
         }
 

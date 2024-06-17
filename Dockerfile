@@ -1,17 +1,18 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-COPY ["./Pipfile", "./Pipfile.lock", "./"]
+COPY ./ ./
 
-RUN python -m pip install --upgrade pip --no-cache-dir && \
-    pip install --no-cache-dir pipenv && \
-    pipenv sync --clear --system
-
-COPY ["./", "./"]
+RUN pip install --upgrade pip
+RUN pip install \
+      --disable-pip-version-check \
+      --no-cache-dir \
+      --no-color \
+      --requirement requirements.txt
 
 EXPOSE 8000
 USER nobody

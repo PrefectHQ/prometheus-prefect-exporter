@@ -7,7 +7,7 @@ class PrefectDeployments:
     PrefectDeployments class for interacting with Prefect's deployments endpoints.
     """
 
-    def __init__(self, url, headers, max_retries, logger, uri = "deployments") -> None:
+    def __init__(self, url, headers, max_retries, logger, uri="deployments") -> None:
         """
         Initialize the PrefectDeployments instance.
 
@@ -19,12 +19,11 @@ class PrefectDeployments:
             uri (str, optional): The URI path for deployments endpoints. Default is "deployments".
 
         """
-        self.headers     = headers
-        self.uri         = uri
-        self.url         = url
+        self.headers = headers
+        self.uri = uri
+        self.url = url
         self.max_retries = max_retries
-        self.logger      = logger
-
+        self.logger = logger
 
     def get_deployments_info(self) -> dict:
         """
