@@ -3,7 +3,7 @@ from metrics.flow_runs import PrefectFlowRuns
 from metrics.flows import PrefectFlows
 from metrics.work_pools import PrefectWorkPools
 from metrics.work_queues import PrefectWorkQueues
-from prometheus_client.core import GaugeMetricFamily
+from prometheus_client.core import GaugeMetricFamily, CounterMetricFamily
 
 
 class PrefectMetrics(object):
@@ -46,6 +46,9 @@ class PrefectMetrics(object):
         flow_runs = PrefectFlowRuns(
             self.url, self.headers, self.max_retries, self.offset_minutes, self.logger
         ).get_flow_runs_info()
+        all_flow_runs = PrefectFlowRuns(
+            self.url, self.headers, self.max_retries, self.offset_minutes, self.logger
+        ).get_all_flow_runs_info()
         work_pools = PrefectWorkPools(
             self.url, self.headers, self.max_retries, self.logger
         ).get_work_pools_info()
@@ -150,17 +153,17 @@ class PrefectMetrics(object):
         prefect_flow_runs = GaugeMetricFamily(
             "prefect_flow_runs_total", "Prefect total flow runs", labels=[]
         )
-        prefect_flow_runs.add_metric([], len(flow_runs))
+        prefect_flow_runs.add_metric([], len(all_flow_runs))
         yield prefect_flow_runs
 
         # prefect_flow_runs_total_run_time metric
-        prefect_flow_runs_total_run_time = GaugeMetricFamily(
+        prefect_flow_runs_total_run_time = CounterMetricFamily(
             "prefect_flow_runs_total_run_time",
             "Prefect flow-run total run time in seconds",
             labels=["flow_id", "flow_name", "flow_run_name"],
         )
 
-        for flow_run in flow_runs:
+        for flow_run in all_flow_runs:
             # get deployment name
             if flow_run.get("deployment_id") is None:
                 deployment_name = "null"
