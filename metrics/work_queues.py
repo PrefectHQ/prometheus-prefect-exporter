@@ -1,3 +1,5 @@
+import uuid
+
 import requests
 import time
 
@@ -38,6 +40,38 @@ class PrefectWorkQueues:
         for retry in range(self.max_retries):
             try:
                 resp = requests.post(endpoint, headers=self.headers)
+                resp.raise_for_status()
+
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        work_queues_info = resp.json()
+        for queue_info in work_queues_info:
+            queue_info["status_info"] = self.get_work_queue_status_info(queue_info["id"])
+
+        return work_queues_info
+
+    def get_work_queue_status_info(self, work_queue_id: uuid.UUID) -> dict:
+        """
+        Get status information for a specific work queue.
+
+        Args:
+            work_queue_id (uuid.UUID): The UUID of the work queue.
+
+        Returns:
+            dict: JSON response containing work queue status information.
+
+        """
+        endpoint = f"{self.url}/{self.uri}/{work_queue_id}/status"
+
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.get(endpoint, headers=self.headers)
                 resp.raise_for_status()
 
             except requests.exceptions.HTTPError as err:

@@ -343,12 +343,19 @@ class PrefectMetrics(object):
                 "type",
                 "work_pool_id",
                 "work_pool_name",
-                "status"
+                "status",
+                "healthy",
+                "late_runs_count",
+                "last_polled",
+                "health_check_policy_maximum_late_runs",
+                "health_check_policy_maximum_seconds_since_last_polled",
             ],
         )
 
         for work_queue in work_queues:
             state = 0 if work_queue.get("is_paused") else 1
+            status_info = work_queue.get("status_info", {})
+            health_check_policy = status_info.get("health_check_policy", {})
             prefect_info_work_queues.add_metric(
                 [
                     str(work_queue.get("created", "null")),
@@ -360,6 +367,11 @@ class PrefectMetrics(object):
                     str(work_queue.get("work_pool_id", "null")),
                     str(work_queue.get("work_pool_name", "null")),
                     str(work_queue.get("status", "null")),
+                    str(status_info.get("healthy", "null")),
+                    str(status_info.get("late_runs_count", "null")),
+                    str(status_info.get("last_polled", "null")),
+                    str(health_check_policy.get("maximum_late_runs", "null")),
+                    str(health_check_policy.get("maximum_seconds_since_last_polled", "null")),
                 ],
                 state,
             )
