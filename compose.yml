@@ -13,6 +13,8 @@ services:
       - "0.0.0.0"
       - --port
       - "4200"
+    healthcheck:
+      test: ["CMD-SHELL", "prefect version"]
 
   prometheus-exporter:
     build:
@@ -21,6 +23,9 @@ services:
       - "8000:8000"
     environment:
       PREFECT_API_URL: http://prefect:4200/api
+    depends_on:
+      prefect:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:latest
