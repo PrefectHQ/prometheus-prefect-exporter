@@ -64,6 +64,29 @@ pip install -r requirements.txt
 python main.py
 ```
 
+#### Using Docker Compose
+
+Alternatively, you can use the [Docker Compose configuration](./compose.yml)
+to stand up the exporter alongside Prefect and Prometheus.
+
+To get started, run:
+
+```bash
+docker compose up -d
+```
+
+Confirm the services are running and healthy:
+
+```
+docker compose ps
+```
+
+You can now reach each service locally:
+
+- Prefect: http://localhost:4200
+- Exporter: http://localhost:8000
+- Prometheus: http://localhost:9090
+
 ## Configuration
 
 You can modify environment variables to change the behavior of the exporter.
