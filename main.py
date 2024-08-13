@@ -9,6 +9,7 @@ from metrics.metrics import PrefectMetrics
 from metrics.healthz import PrefectHealthz
 from prometheus_client import start_http_server, REGISTRY
 
+# Function to get CSRF Token if CSRF is enabled
 async def get_csrf_token(url: str, csrf_client_id: str) -> str:
     async with httpx.AsyncClient() as client:
         csrf_token = await client.get(f"{url}/csrf-token?client={csrf_client_id}")
