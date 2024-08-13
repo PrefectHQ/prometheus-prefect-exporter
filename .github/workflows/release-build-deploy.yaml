@@ -53,11 +53,3 @@ jobs:
           push: true
           pull: true
           provenance: false
-
-      - name: Trigger Downstream Helm Chart Upgrade
-        run: |
-          gh workflow run prometheus-exporter-helm-release.yaml \
-              --repo=prefecthq/prefect-helm \
-              --ref=main
-        env: 
-          GITHUB_TOKEN: ${{ secrets.PREFECT_HELM_ACTIONS_RW }}
