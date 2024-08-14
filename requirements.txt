@@ -1,3 +1,4 @@
 requests==2.31.0
 prometheus_client==0.20.0
-httpx==0.27.0
+pendulum==2.1.2
+prefect==2.20.1

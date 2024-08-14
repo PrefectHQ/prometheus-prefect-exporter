@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY ./ ./
-
+ENV PREFECT_HOME=/app
 RUN pip install --upgrade pip
 RUN pip install \
       --disable-pip-version-check \

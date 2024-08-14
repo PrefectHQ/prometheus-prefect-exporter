@@ -19,7 +19,6 @@ def metrics():
     offset_minutes = int(os.getenv("OFFSET_MINUTES", "5"))
     url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
-    csrf_enabled = str(os.getenv("PREFECT_CSRF_ENABLED", "False"))
     csrf_client_id = str(uuid.uuid4())
 
     # Configure logging
