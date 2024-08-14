@@ -45,7 +45,7 @@ class PrefectMetrics(object):
         ##
         # PREFECT GET CSRF TOKEN IF ENABLED
         #
-        if self.csrf_enabled == "True":
+        if self.csrf_enabled:
             self.logger.info("CSRF Token is enabled. Fetching CSRF Token...")
             if not self.csrf_token or pendulum.now("UTC") > self.csrf_token_expiration:
                 self.logger.info("CSRF Token is expired or has not been generated yet. Fetching new CSRF Token...")

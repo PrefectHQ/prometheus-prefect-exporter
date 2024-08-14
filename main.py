@@ -45,7 +45,7 @@ def metrics():
         offset_minutes=offset_minutes,
         max_retries=max_retries,
         client_id=csrf_client_id,
-        csrf_enabled = str(os.getenv("PREFECT_CSRF_ENABLED", "False")),
+        csrf_enabled=str(os.getenv("PREFECT_CSRF_ENABLED", "False")) == "True",
         logger=logger,
     )
 
