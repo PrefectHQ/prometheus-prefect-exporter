@@ -1,19 +1,11 @@
 import os
 import logging
 import time
-import httpx
-import asyncio
 import uuid
 
 from metrics.metrics import PrefectMetrics
 from metrics.healthz import PrefectHealthz
 from prometheus_client import start_http_server, REGISTRY
-
-# Function to get CSRF Token if CSRF is enabled
-async def get_csrf_token(url: str, csrf_client_id: str) -> str:
-    async with httpx.AsyncClient() as client:
-        csrf_token = await client.get(f"{url}/csrf-token?client={csrf_client_id}")
-    return csrf_token.json()['token']
 
 def metrics():
     """
@@ -42,13 +34,6 @@ def metrics():
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    # Get CSRF Token if Enabled
-    if csrf_enabled == "True":
-        logger.info("CSRF Token is enabled. Fetching CSRF Token...")
-        csrf_token = asyncio.run(get_csrf_token(url, csrf_client_id))
-        headers["Prefect-Csrf-Token"] = csrf_token
-        headers["Prefect-Csrf-Client"] = csrf_client_id
-
     # check endpoint
     PrefectHealthz(
         url=url, headers=headers, max_retries=max_retries, logger=logger
@@ -60,6 +45,8 @@ def metrics():
         headers=headers,
         offset_minutes=offset_minutes,
         max_retries=max_retries,
+        client_id=csrf_client_id,
+        csrf_enabled = str(os.getenv("PREFECT_CSRF_ENABLED", "False")),
         logger=logger,
     )
 
