@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY ./ ./
 ENV PREFECT_HOME=/app
+ENV PREFECT_LOGGING_EXTRA_LOGGERS=prometheus-prefect-exporter
 RUN pip install --upgrade pip
 RUN pip install \
       --disable-pip-version-check \

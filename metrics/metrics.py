@@ -408,7 +408,6 @@ class PrefectMetrics(object):
         for retry in range(self.max_retries):
             try:
                 csrf_token = requests.get(f"{self.url}/csrf-token?client={self.client_id}")
-                self.logger.info(f"CSRF Token Response: {csrf_token.json()}")
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:
