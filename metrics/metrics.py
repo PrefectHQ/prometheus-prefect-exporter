@@ -3,6 +3,10 @@ from metrics.flow_runs import PrefectFlowRuns
 from metrics.flows import PrefectFlows
 from metrics.work_pools import PrefectWorkPools
 from metrics.work_queues import PrefectWorkQueues
+import requests
+import time
+from prefect.client.schemas.objects import CsrfToken
+import pendulum
 from prometheus_client.core import GaugeMetricFamily, CounterMetricFamily
 
 
@@ -11,7 +15,7 @@ class PrefectMetrics(object):
     PrefectMetrics class for collecting and exposing Prometheus metrics related to Prefect.
     """
 
-    def __init__(self, url, headers, offset_minutes, max_retries, logger) -> None:
+    def __init__(self, url, headers, offset_minutes, max_retries, csrf_enabled, client_id, logger) -> None:
         """
         Initialize the PrefectMetrics instance.
 
@@ -28,12 +32,27 @@ class PrefectMetrics(object):
         self.url = url
         self.max_retries = max_retries
         self.logger = logger
+        self.client_id = client_id
+        self.csrf_enabled = csrf_enabled
+        self.csrf_token = None
+        self.csrf_token_expiration = None
 
     def collect(self):
         """
         Get and set Prefect work queues metrics.
 
         """
+        ##
+        # PREFECT GET CSRF TOKEN IF ENABLED
+        #
+        if self.csrf_enabled:
+            if not self.csrf_token or pendulum.now("UTC") > self.csrf_token_expiration:
+                self.logger.info("CSRF Token is expired or has not been generated yet. Fetching new CSRF Token...")
+                token_information = self.get_csrf_token()
+                self.csrf_token = token_information.token
+                self.csrf_token_expiration = token_information.expiration
+            self.headers["Prefect-Csrf-Token"] = self.csrf_token
+            self.headers["Prefect-Csrf-Client"] = self.client_id
         ##
         # PREFECT GET RESOURCES
         #
@@ -377,3 +396,20 @@ class PrefectMetrics(object):
             )
 
         yield prefect_info_work_queues
+
+    def get_csrf_token(self) -> CsrfToken:
+        """
+        Pull CSRF Token from CSRF Endpoint.
+
+        """
+        for retry in range(self.max_retries):
+            try:
+                csrf_token = requests.get(f"{self.url}/csrf-token?client={self.client_id}")
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+        return CsrfToken.parse_obj(csrf_token.json())

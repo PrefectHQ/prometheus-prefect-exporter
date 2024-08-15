@@ -1,13 +1,13 @@
 import os
 import logging
 import time
+import uuid
 
 from metrics.metrics import PrefectMetrics
 from metrics.healthz import PrefectHealthz
 from prometheus_client import start_http_server, REGISTRY
 
-
-if __name__ == "__main__":
+def metrics():
     """
     Main entry point for the PrefectMetrics exporter.
     """
@@ -19,6 +19,7 @@ if __name__ == "__main__":
     offset_minutes = int(os.getenv("OFFSET_MINUTES", "5"))
     url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
+    csrf_client_id = str(uuid.uuid4())
 
     # Configure logging
     logging.basicConfig(
@@ -43,6 +44,8 @@ if __name__ == "__main__":
         headers=headers,
         offset_minutes=offset_minutes,
         max_retries=max_retries,
+        client_id=csrf_client_id,
+        csrf_enabled=str(os.getenv("PREFECT_CSRF_ENABLED", "False")) == "True",
         logger=logger,
     )
 
@@ -57,3 +60,6 @@ if __name__ == "__main__":
     # Run the loop to collect Prefect metrics
     while True:
         time.sleep(5)
+
+if __name__ == "__main__":
+    metrics()
