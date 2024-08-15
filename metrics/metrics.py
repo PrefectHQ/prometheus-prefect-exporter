@@ -48,9 +48,9 @@ class PrefectMetrics(object):
         if self.csrf_enabled:
             if not self.csrf_token or pendulum.now("UTC") > self.csrf_token_expiration:
                 self.logger.info("CSRF Token is expired or has not been generated yet. Fetching new CSRF Token...")
-                self.token_inforation = self.get_csrf_token()
-                self.csrf_token = self.token_inforation.token
-                self.csrf_token_expiration = self.token_inforation.expiration
+                token_information = self.get_csrf_token()
+                self.csrf_token = token_information.token
+                self.csrf_token_expiration = token_information.expiration
             self.headers["Prefect-Csrf-Token"] = self.csrf_token
             self.headers["Prefect-Csrf-Client"] = self.client_id
         ##
