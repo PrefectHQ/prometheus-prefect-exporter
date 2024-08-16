@@ -1,8 +1,7 @@
-import requests
-import time
+from metrics.api_metric import PrefectApiMetric
 
 
-class PrefectWorkPools:
+class PrefectWorkPools(PrefectApiMetric):
     """
     PrefectWorkPools class for interacting with Prefect's work pools endpoints.
     """
@@ -19,11 +18,9 @@ class PrefectWorkPools:
             uri (str, optional): The URI path for administrative endpoints. Default is "work_pools".
 
         """
-        self.headers = headers
-        self.uri = uri
-        self.url = url
-        self.max_retries = max_retries
-        self.logger = logger
+        super().__init__(
+            url=url, headers=headers, max_retries=max_retries, logger=logger, uri=uri
+        )
 
     def get_work_pools_info(self) -> dict:
         """
@@ -33,18 +30,6 @@ class PrefectWorkPools:
             dict: JSON response containing work pools information.
 
         """
-        endpoint = f"{self.url}/{self.uri}/filter"
+        all_work_pools = self._get_with_pagination()
 
-        for retry in range(self.max_retries):
-            try:
-                resp = requests.post(endpoint, headers=self.headers)
-                resp.raise_for_status()
-            except requests.exceptions.HTTPError as err:
-                self.logger.error(err)
-                if retry >= self.max_retries - 1:
-                    time.sleep(1)
-                    raise SystemExit(err)
-            else:
-                break
-
-        return resp.json()
+        return all_work_pools

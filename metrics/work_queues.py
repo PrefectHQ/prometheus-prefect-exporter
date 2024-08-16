@@ -3,8 +3,10 @@ import uuid
 import requests
 import time
 
+from metrics.api_metric import PrefectApiMetric
 
-class PrefectWorkQueues:
+
+class PrefectWorkQueues(PrefectApiMetric):
     """
     PrefectWorkQueues class for interacting with Prefect's work queues endpoints.
     """
@@ -21,11 +23,9 @@ class PrefectWorkQueues:
             uri (str, optional): The URI path for administrative endpoints. Default is "work_queues".
 
         """
-        self.headers = headers
-        self.uri = uri
-        self.url = url
-        self.max_retries = max_retries
-        self.logger = logger
+        super().__init__(
+            url=url, headers=headers, max_retries=max_retries, logger=logger, uri=uri
+        )
 
     def get_work_queues_info(self) -> dict:
         """
@@ -35,24 +35,12 @@ class PrefectWorkQueues:
             dict: JSON response containing work queues information.
 
         """
-        endpoint = f"{self.url}/{self.uri}/filter"
+        work_queues_info = self._get_with_pagination()
 
-        for retry in range(self.max_retries):
-            try:
-                resp = requests.post(endpoint, headers=self.headers)
-                resp.raise_for_status()
-
-            except requests.exceptions.HTTPError as err:
-                self.logger.error(err)
-                if retry >= self.max_retries - 1:
-                    time.sleep(1)
-                    raise SystemExit(err)
-            else:
-                break
-
-        work_queues_info = resp.json()
         for queue_info in work_queues_info:
-            queue_info["status_info"] = self.get_work_queue_status_info(queue_info["id"])
+            queue_info["status_info"] = self.get_work_queue_status_info(
+                queue_info["id"]
+            )
 
         return work_queues_info
 

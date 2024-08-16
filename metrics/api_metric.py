@@ -1,4 +1,5 @@
 import time
+from typing import Optional
 
 import requests
 
@@ -26,7 +27,7 @@ class PrefectApiMetric:
         self.max_retries = max_retries
         self.logger = logger
 
-    def _get_with_pagination(self):
+    def _get_with_pagination(self, base_data: Optional[dict] = None) -> dict:
         """
         Fetch all items from the endpoint with pagination.
 
@@ -41,11 +42,9 @@ class PrefectApiMetric:
         while True:
             for retry in range(self.max_retries):
                 data = {
+                    **(base_data or {}),
                     "limit": limit,
                     "offset": offset,
-                    "flow_runs": {
-                        "operator": "and_",
-                    },
                 }
 
                 try:
