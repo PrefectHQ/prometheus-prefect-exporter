@@ -22,7 +22,7 @@ class PrefectFlows(PrefectApiMetric):
             url=url, headers=headers, max_retries=max_retries, logger=logger, uri=uri
         )
 
-    def get_flows_info(self) -> dict:
+    def get_flows_info(self) -> list:
         """
         Get information about Prefect flows.
 

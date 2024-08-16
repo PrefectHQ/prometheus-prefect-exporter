@@ -22,7 +22,7 @@ class PrefectWorkPools(PrefectApiMetric):
             url=url, headers=headers, max_retries=max_retries, logger=logger, uri=uri
         )
 
-    def get_work_pools_info(self) -> dict:
+    def get_work_pools_info(self) -> list:
         """
         Get information about Prefect's work pools.
 

@@ -27,7 +27,7 @@ class PrefectWorkQueues(PrefectApiMetric):
             url=url, headers=headers, max_retries=max_retries, logger=logger, uri=uri
         )
 
-    def get_work_queues_info(self) -> dict:
+    def get_work_queues_info(self) -> list:
         """
         Get information about Prefect's work queues.
 

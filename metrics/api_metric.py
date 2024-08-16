@@ -27,7 +27,7 @@ class PrefectApiMetric:
         self.max_retries = max_retries
         self.logger = logger
 
-    def _get_with_pagination(self, base_data: Optional[dict] = None) -> dict:
+    def _get_with_pagination(self, base_data: Optional[dict] = None) -> list:
         """
         Fetch all items from the endpoint with pagination.
 
@@ -39,6 +39,7 @@ class PrefectApiMetric:
         offset = 0
         all_items = []
 
+        # Run the loop until the current page is empty
         while True:
             for retry in range(self.max_retries):
                 data = {
@@ -58,12 +59,13 @@ class PrefectApiMetric:
                 else:
                     break
 
-            curr_page_flow_runs = resp.json()
+            curr_page_items = resp.json()
 
-            if not curr_page_flow_runs:
+            # If the current page is empty, break the loop
+            if not curr_page_items:
                 break
 
-            all_items.extend(curr_page_flow_runs)
+            all_items.extend(curr_page_items)
             offset += limit
 
         return all_items

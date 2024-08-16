@@ -31,7 +31,7 @@ class PrefectFlowRuns(PrefectApiMetric):
         after_data = datetime.now(timezone.utc) - timedelta(minutes=offset_minutes)
         self.after_data_fmt = after_data.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
-    def get_flow_runs_info(self) -> dict:
+    def get_flow_runs_info(self) -> list:
         """
         Get information about flow runs within a specified time range.
 
@@ -50,7 +50,7 @@ class PrefectFlowRuns(PrefectApiMetric):
 
         return flow_runs
 
-    def get_all_flow_runs_info(self) -> dict:
+    def get_all_flow_runs_info(self) -> list:
         """
         Get information about all flow runs.
 

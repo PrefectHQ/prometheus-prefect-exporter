@@ -22,7 +22,7 @@ class PrefectDeployments(PrefectApiMetric):
             url=url, headers=headers, max_retries=max_retries, logger=logger, uri=uri
         )
 
-    def get_deployments_info(self) -> dict:
+    def get_deployments_info(self) -> list:
         """
         Get information about Prefect deployments.
 
