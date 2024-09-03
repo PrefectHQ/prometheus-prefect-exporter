@@ -1,8 +1,7 @@
-import requests
-import time
+from metrics.api_metric import PrefectApiMetric
 
 
-class PrefectDeployments:
+class PrefectDeployments(PrefectApiMetric):
     """
     PrefectDeployments class for interacting with Prefect's deployments endpoints.
     """
@@ -19,13 +18,11 @@ class PrefectDeployments:
             uri (str, optional): The URI path for deployments endpoints. Default is "deployments".
 
         """
-        self.headers = headers
-        self.uri = uri
-        self.url = url
-        self.max_retries = max_retries
-        self.logger = logger
+        super().__init__(
+            url=url, headers=headers, max_retries=max_retries, logger=logger, uri=uri
+        )
 
-    def get_deployments_info(self) -> dict:
+    def get_deployments_info(self) -> list:
         """
         Get information about Prefect deployments.
 
@@ -33,18 +30,6 @@ class PrefectDeployments:
             dict: JSON response containing information about deployments.
 
         """
-        endpoint = f"{self.url}/{self.uri}/filter"
+        all_deployments = self._get_with_pagination()
 
-        for retry in range(self.max_retries):
-            try:
-                resp = requests.post(endpoint, headers=self.headers)
-                resp.raise_for_status()
-            except requests.exceptions.HTTPError as err:
-                self.logger.error(err)
-                if retry >= self.max_retries - 1:
-                    time.sleep(1)
-                    raise SystemExit(err)
-            else:
-                break
-
-        return resp.json()
+        return all_deployments

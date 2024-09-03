@@ -15,7 +15,9 @@ class PrefectMetrics(object):
     PrefectMetrics class for collecting and exposing Prometheus metrics related to Prefect.
     """
 
-    def __init__(self, url, headers, offset_minutes, max_retries, csrf_enabled, client_id, logger) -> None:
+    def __init__(
+        self, url, headers, offset_minutes, max_retries, csrf_enabled, client_id, logger
+    ) -> None:
         """
         Initialize the PrefectMetrics instance.
 
@@ -47,7 +49,9 @@ class PrefectMetrics(object):
         #
         if self.csrf_enabled:
             if not self.csrf_token or pendulum.now("UTC") > self.csrf_token_expiration:
-                self.logger.info("CSRF Token is expired or has not been generated yet. Fetching new CSRF Token...")
+                self.logger.info(
+                    "CSRF Token is expired or has not been generated yet. Fetching new CSRF Token..."
+                )
                 token_information = self.get_csrf_token()
                 self.csrf_token = token_information.token
                 self.csrf_token_expiration = token_information.expiration
@@ -100,7 +104,7 @@ class PrefectMetrics(object):
                 "path",
                 "work_pool_name",
                 "work_queue_name",
-                "status"
+                "status",
             ],
         )
 
@@ -317,7 +321,7 @@ class PrefectMetrics(object):
                 "is_paused",
                 "work_pool_name",
                 "type",
-                "status"
+                "status",
             ],
         )
 
@@ -390,7 +394,11 @@ class PrefectMetrics(object):
                     str(status_info.get("late_runs_count", "null")),
                     str(status_info.get("last_polled", "null")),
                     str(health_check_policy.get("maximum_late_runs", "null")),
-                    str(health_check_policy.get("maximum_seconds_since_last_polled", "null")),
+                    str(
+                        health_check_policy.get(
+                            "maximum_seconds_since_last_polled", "null"
+                        )
+                    ),
                 ],
                 state,
             )
@@ -404,7 +412,9 @@ class PrefectMetrics(object):
         """
         for retry in range(self.max_retries):
             try:
-                csrf_token = requests.get(f"{self.url}/csrf-token?client={self.client_id}")
+                csrf_token = requests.get(
+                    f"{self.url}/csrf-token?client={self.client_id}"
+                )
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
                 if retry >= self.max_retries - 1:

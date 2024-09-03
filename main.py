@@ -7,6 +7,7 @@ from metrics.metrics import PrefectMetrics
 from metrics.healthz import PrefectHealthz
 from prometheus_client import start_http_server, REGISTRY
 
+
 def metrics():
     """
     Main entry point for the PrefectMetrics exporter.
@@ -60,6 +61,7 @@ def metrics():
     # Run the loop to collect Prefect metrics
     while True:
         time.sleep(5)
+
 
 if __name__ == "__main__":
     metrics()
