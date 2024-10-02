@@ -1,2 +1,5 @@
 # Python artifacts
 __pycache__/
+
+# OS
+.DS_Store

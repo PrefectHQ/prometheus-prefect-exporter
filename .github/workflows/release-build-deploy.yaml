@@ -1,17 +1,17 @@
-name: Build and publish prometheus-prefect-exporter image
+---
+name: Build and Publish prometheus-prefect-exporter Image
 
 "on":
   push:
     tags:
       - '*'
 
-# Do not grant jobs any permissions by default
 permissions: {}
 
 jobs:
   build_push_exporter:
     permissions:
-      # required to clone repository
+      # required to read from the repo
       contents: read
     runs-on: ubuntu-latest
     steps:

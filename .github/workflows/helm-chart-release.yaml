@@ -1,10 +1,13 @@
-name: Create prefect-helm release
+---
+name: Trigger Downstream Helm Chart Release
 
-on:
+"on":
   # As soon as this repo creates an official release, we will
   # create a corresponding release in the helm chart repo
   release:
     types: [released]
+
+permissions: {}
 
 jobs:
   create_helm_release:
