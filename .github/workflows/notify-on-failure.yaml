@@ -7,7 +7,6 @@ name: Notify on Failure
       - Build and Publish prometheus-prefect-exporter Image
       - Trigger Downstream Helm Chart Release
     types: [completed]
-    branches: [main]
 
 permissions: {}
 
