@@ -102,6 +102,7 @@ class PrefectMetrics(object):
                 "is_schedule_active",
                 "deployment_name",
                 "path",
+                "paused",
                 "work_pool_name",
                 "work_queue_name",
                 "status",
@@ -122,15 +123,25 @@ class PrefectMetrics(object):
                     "null",
                 )
 
+            # The "is_schedule_active" field is deprecated, and always returns
+            # "null". For backward compatibility, we will populate the value of
+            # this label with the "paused" field.
+            is_schedule_active = deployment.get("paused", "null")
+            if is_schedule_active != "null":
+                # Negate the value we get from "paused" because "is_schedule_active"
+                # is the opposite of "paused".
+                is_schedule_active = not is_schedule_active
+
             prefect_info_deployments.add_metric(
                 [
                     str(deployment.get("created", "null")),
                     str(deployment.get("flow_id", "null")),
                     str(flow_name),
                     str(deployment.get("id", "null")),
-                    str(deployment.get("is_schedule_active", "null")),
+                    str(is_schedule_active),
                     str(deployment.get("name", "null")),
                     str(deployment.get("path", "null")),
+                    str(deployment.get("paused", "null")),
                     str(deployment.get("work_pool_name", "null")),
                     str(deployment.get("work_queue_name", "null")),
                     str(deployment.get("status", "null")),
