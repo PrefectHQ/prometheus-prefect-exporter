@@ -100,7 +100,7 @@ class PrefectMetrics(object):
                 "flow_name",
                 "deployment_id",
                 # The "is_schedule_active" field is deprecated, and always
-                # returns Null. For backward compatibility, we will populate
+                # returns "null". For backward compatibility, we will populate
                 # the value of the this label with the "paused" field.
                 "is_schedule_active",
                 "deployment_name",
