@@ -99,9 +99,13 @@ class PrefectMetrics(object):
                 "flow_id",
                 "flow_name",
                 "deployment_id",
+                # The "is_schedule_active" field is deprecated, and always
+                # returns Null. For backward compatibility, we will populate
+                # the value of the this label with the "paused" field.
                 "is_schedule_active",
                 "deployment_name",
                 "path",
+                "paused",
                 "work_pool_name",
                 "work_queue_name",
                 "status",
@@ -128,9 +132,12 @@ class PrefectMetrics(object):
                     str(deployment.get("flow_id", "null")),
                     str(flow_name),
                     str(deployment.get("id", "null")),
-                    str(deployment.get("is_schedule_active", "null")),
+                    # Populate the "is_schedule_active" label with the value
+                    # from the "paussed" field.
+                    str(deployment.get("paused", "null")),
                     str(deployment.get("name", "null")),
                     str(deployment.get("path", "null")),
+                    str(deployment.get("paused", "null")),
                     str(deployment.get("work_pool_name", "null")),
                     str(deployment.get("work_queue_name", "null")),
                     str(deployment.get("status", "null")),
