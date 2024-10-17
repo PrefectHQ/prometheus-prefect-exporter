@@ -133,8 +133,8 @@ class PrefectMetrics(object):
                     str(flow_name),
                     str(deployment.get("id", "null")),
                     # Populate the "is_schedule_active" label with the value
-                    # from the "paussed" field.
-                    str(deployment.get("paused", "null")),
+                    # from the "paused" field (negated).
+                    str(not(deployment.get("paused", "null"))),
                     str(deployment.get("name", "null")),
                     str(deployment.get("path", "null")),
                     str(deployment.get("paused", "null")),
