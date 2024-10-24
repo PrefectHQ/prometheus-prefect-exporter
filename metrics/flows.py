@@ -6,7 +6,16 @@ class PrefectFlows(PrefectApiMetric):
     PrefectFlows class for interacting with Prefect's flows endpoints.
     """
 
-    def __init__(self, url, headers, max_retries, logger, pagination_usage, pagination_limit, uri="flows") -> None:
+    def __init__(
+        self,
+        url,
+        headers,
+        max_retries,
+        logger,
+        pagination_usage,
+        pagination_limit,
+        uri="flows",
+    ) -> None:
         """
         Initialize the PrefectFlows instance.
 
@@ -19,7 +28,13 @@ class PrefectFlows(PrefectApiMetric):
 
         """
         super().__init__(
-            url=url, headers=headers, max_retries=max_retries, logger=logger, pagination_usage=pagination_usage, pagination_limit=pagination_limit, uri=uri
+            url=url,
+            headers=headers,
+            max_retries=max_retries,
+            logger=logger,
+            pagination_usage=pagination_usage,
+            pagination_limit=pagination_limit,
+            uri=uri,
         )
 
     def get_flows_info(self) -> list:

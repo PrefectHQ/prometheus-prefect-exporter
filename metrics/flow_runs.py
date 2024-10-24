@@ -9,7 +9,15 @@ class PrefectFlowRuns(PrefectApiMetric):
     """
 
     def __init__(
-        self, url, headers, max_retries, offset_minutes, logger, pagination_usage, pagination_limit, uri="flow_runs"
+        self,
+        url,
+        headers,
+        max_retries,
+        offset_minutes,
+        logger,
+        pagination_usage,
+        pagination_limit,
+        uri="flow_runs",
     ) -> None:
         """
         Initialize the PrefectFlowRuns instance.
@@ -24,7 +32,13 @@ class PrefectFlowRuns(PrefectApiMetric):
 
         """
         super().__init__(
-            url=url, headers=headers, max_retries=max_retries, logger=logger, pagination_usage=pagination_usage, pagination_limit=pagination_limit, uri=uri
+            url=url,
+            headers=headers,
+            max_retries=max_retries,
+            logger=logger,
+            pagination_usage=pagination_usage,
+            pagination_limit=pagination_limit,
+            uri=uri,
         )
 
         # Calculate timestamps for before and after data

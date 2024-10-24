@@ -6,7 +6,16 @@ class PrefectWorkPools(PrefectApiMetric):
     PrefectWorkPools class for interacting with Prefect's work pools endpoints.
     """
 
-    def __init__(self, url, headers, max_retries, logger, pagination_usage, pagination_limit, uri="work_pools") -> None:
+    def __init__(
+        self,
+        url,
+        headers,
+        max_retries,
+        logger,
+        pagination_usage,
+        pagination_limit,
+        uri="work_pools",
+    ) -> None:
         """
         Initialize the PrefectWorkPools instance.
 
@@ -19,7 +28,13 @@ class PrefectWorkPools(PrefectApiMetric):
 
         """
         super().__init__(
-            url=url, headers=headers, max_retries=max_retries, logger=logger, pagination_usage=pagination_usage, pagination_limit=pagination_limit, uri=uri
+            url=url,
+            headers=headers,
+            max_retries=max_retries,
+            logger=logger,
+            pagination_usage=pagination_usage,
+            pagination_limit=pagination_limit,
+            uri=uri,
         )
 
     def get_work_pools_info(self) -> list:

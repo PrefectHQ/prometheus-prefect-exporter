@@ -16,7 +16,16 @@ class PrefectMetrics(object):
     """
 
     def __init__(
-        self, url, headers, offset_minutes, max_retries, csrf_enabled, client_id, logger, pagination_usage, pagination_limit
+        self,
+        url,
+        headers,
+        offset_minutes,
+        max_retries,
+        csrf_enabled,
+        client_id,
+        logger,
+        pagination_usage,
+        pagination_limit,
     ) -> None:
         """
         Initialize the PrefectMetrics instance.
@@ -71,22 +80,54 @@ class PrefectMetrics(object):
         # PREFECT GET RESOURCES
         #
         deployments = PrefectDeployments(
-            self.url, self.headers, self.max_retries, self.logger, self.pagination_usage, self.pagination_limit
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.logger,
+            self.pagination_usage,
+            self.pagination_limit,
         ).get_deployments_info()
         flows = PrefectFlows(
-            self.url, self.headers, self.max_retries, self.logger, self.pagination_usage, self.pagination_limit
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.logger,
+            self.pagination_usage,
+            self.pagination_limit,
         ).get_flows_info()
         flow_runs = PrefectFlowRuns(
-            self.url, self.headers, self.max_retries, self.offset_minutes, self.logger, self.pagination_usage, self.pagination_limit
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.offset_minutes,
+            self.logger,
+            self.pagination_usage,
+            self.pagination_limit,
         ).get_flow_runs_info()
         all_flow_runs = PrefectFlowRuns(
-            self.url, self.headers, self.max_retries, self.offset_minutes, self.logger, self.pagination_usage, self.pagination_limit
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.offset_minutes,
+            self.logger,
+            self.pagination_usage,
+            self.pagination_limit,
         ).get_all_flow_runs_info()
         work_pools = PrefectWorkPools(
-            self.url, self.headers, self.max_retries, self.logger, self.pagination_usage, self.pagination_limit
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.logger,
+            self.pagination_usage,
+            self.pagination_limit,
         ).get_work_pools_info()
         work_queues = PrefectWorkQueues(
-            self.url, self.headers, self.max_retries, self.logger, self.pagination_usage, self.pagination_limit
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.logger,
+            self.pagination_usage,
+            self.pagination_limit,
         ).get_work_queues_info()
 
         ##

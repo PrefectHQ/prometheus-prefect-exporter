@@ -6,7 +6,16 @@ class PrefectDeployments(PrefectApiMetric):
     PrefectDeployments class for interacting with Prefect's deployments endpoints.
     """
 
-    def __init__(self, url, headers, max_retries, logger, pagination_usage, pagination_limit, uri="deployments") -> None:
+    def __init__(
+        self,
+        url,
+        headers,
+        max_retries,
+        logger,
+        pagination_usage,
+        pagination_limit,
+        uri="deployments",
+    ) -> None:
         """
         Initialize the PrefectDeployments instance.
 
@@ -19,13 +28,19 @@ class PrefectDeployments(PrefectApiMetric):
             pagination_limit (int): The maximum number of pages to fetch.
         """
         super().__init__(
-            url=url, headers=headers, max_retries=max_retries, logger=logger, pagination_usage=pagination_usage, pagination_limit=pagination_limit, uri=uri
+            url=url,
+            headers=headers,
+            max_retries=max_retries,
+            logger=logger,
+            pagination_usage=pagination_usage,
+            pagination_limit=pagination_limit,
+            uri=uri,
         )
 
     def get_deployments_info(self) -> list:
         """
         Get information about Prefect deployments.
- 
+
         Returns:
             dict: JSON response containing information about deployments.
 

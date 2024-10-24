@@ -9,7 +9,9 @@ class PrefectApiMetric:
     PrefectDeployments class for interacting with Prefect's endpoints
     """
 
-    def __init__(self, url, headers, max_retries, logger, pagination_usage, pagination_limit, uri) -> None:
+    def __init__(
+        self, url, headers, max_retries, logger, pagination_usage, pagination_limit, uri
+    ) -> None:
         """
         Initialize the PrefectDeployments instance.
 
@@ -29,6 +31,7 @@ class PrefectApiMetric:
         self.logger = logger
         self.pagination_usage = pagination_usage
         self.pagination_limit = pagination_limit
+
     def _get_with_pagination(self, base_data: Optional[dict] = None) -> list:
         """
         Fetch all items from the endpoint with pagination.
