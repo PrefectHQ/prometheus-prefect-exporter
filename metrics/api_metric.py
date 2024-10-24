@@ -15,7 +15,7 @@ class PrefectApiMetric:
         headers,
         max_retries,
         logger,
-        pagination_enabled,
+        enable_pagination,
         pagination_limit,
         uri,
     ) -> None:
@@ -28,7 +28,7 @@ class PrefectApiMetric:
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
             uri (str, optional): The URI path for the intended endpoint.
-            pagination_enabled (bool): Whether to use pagination or not.
+            enable_pagination (bool): Whether to use pagination or not.
             pagination_limit (int): The limit for pagination.
         """
         self.headers = headers
@@ -36,7 +36,7 @@ class PrefectApiMetric:
         self.url = url
         self.max_retries = max_retries
         self.logger = logger
-        self.pagination_enabled = pagination_enabled
+        self.enable_pagination = enable_pagination
         self.pagination_limit = pagination_limit
 
     def _get_with_pagination(self, base_data: Optional[dict] = None) -> list:
@@ -47,7 +47,7 @@ class PrefectApiMetric:
             dict: JSON response containing all items from the endpoint.
         """
         endpoint = f"{self.url}/{self.uri}/filter"
-        pagination_enabled = self.pagination_enabled
+        enable_pagination = self.enable_pagination
         limit = self.pagination_limit
         offset = 0
         all_items = []
@@ -75,7 +75,7 @@ class PrefectApiMetric:
             curr_page_items = resp.json()
 
             # If pagination is not used, break the loop
-            if not pagination_enabled:
+            if not enable_pagination:
                 break
 
             # If the current page is empty, break the loop

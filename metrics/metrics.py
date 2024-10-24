@@ -24,7 +24,7 @@ class PrefectMetrics(object):
         csrf_enabled,
         client_id,
         logger,
-        pagination_enabled,
+        enable_pagination,
         pagination_limit,
     ) -> None:
         """
@@ -45,7 +45,7 @@ class PrefectMetrics(object):
         self.logger = logger
         self.client_id = client_id
         self.csrf_enabled = csrf_enabled
-        self.pagination_enabled = pagination_enabled
+        self.enable_pagination = enable_pagination
         self.pagination_limit = pagination_limit
         self.csrf_token = None
         self.csrf_token_expiration = None
@@ -71,7 +71,7 @@ class PrefectMetrics(object):
         ##
         # NOTIFY IF PAGINATION IS ENABLED
         #
-        if self.pagination_enabled:
+        if self.enable_pagination:
             self.logger.info("Pagination is enabled")
             self.logger.info(f"Pagination limit is {self.pagination_limit}")
         else:
@@ -84,7 +84,7 @@ class PrefectMetrics(object):
             self.headers,
             self.max_retries,
             self.logger,
-            self.pagination_enabled,
+            self.enable_pagination,
             self.pagination_limit,
         ).get_deployments_info()
         flows = PrefectFlows(
@@ -92,7 +92,7 @@ class PrefectMetrics(object):
             self.headers,
             self.max_retries,
             self.logger,
-            self.pagination_enabled,
+            self.enable_pagination,
             self.pagination_limit,
         ).get_flows_info()
         flow_runs = PrefectFlowRuns(
@@ -101,7 +101,7 @@ class PrefectMetrics(object):
             self.max_retries,
             self.offset_minutes,
             self.logger,
-            self.pagination_enabled,
+            self.enable_pagination,
             self.pagination_limit,
         ).get_flow_runs_info()
         all_flow_runs = PrefectFlowRuns(
@@ -110,7 +110,7 @@ class PrefectMetrics(object):
             self.max_retries,
             self.offset_minutes,
             self.logger,
-            self.pagination_enabled,
+            self.enable_pagination,
             self.pagination_limit,
         ).get_all_flow_runs_info()
         work_pools = PrefectWorkPools(
@@ -118,7 +118,7 @@ class PrefectMetrics(object):
             self.headers,
             self.max_retries,
             self.logger,
-            self.pagination_enabled,
+            self.enable_pagination,
             self.pagination_limit,
         ).get_work_pools_info()
         work_queues = PrefectWorkQueues(
@@ -126,7 +126,7 @@ class PrefectMetrics(object):
             self.headers,
             self.max_retries,
             self.logger,
-            self.pagination_enabled,
+            self.enable_pagination,
             self.pagination_limit,
         ).get_work_queues_info()
 
