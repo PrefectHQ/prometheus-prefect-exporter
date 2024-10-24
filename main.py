@@ -48,7 +48,7 @@ def metrics():
         csrf_enabled=str(os.getenv("PREFECT_CSRF_ENABLED", "False")) == "True",
         logger=logger,
         # Enable pagination if not specified to avoid breaking existing deployments
-        enable_pagination=str(os.getenv("ENABLE_PAGINATION", "True")) == "True",
+        enable_pagination=str(os.getenv("PAGINATION_ENABLED", "True")) == "True",
         pagination_limit=int(os.getenv("PAGINATION_LIMIT", 200)),
     )
 
