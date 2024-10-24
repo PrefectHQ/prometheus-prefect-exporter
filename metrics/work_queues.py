@@ -17,7 +17,7 @@ class PrefectWorkQueues(PrefectApiMetric):
         headers,
         max_retries,
         logger,
-        pagination_usage,
+        pagination_enabled,
         pagination_limit,
         uri="work_queues",
     ) -> None:
@@ -37,7 +37,7 @@ class PrefectWorkQueues(PrefectApiMetric):
             headers=headers,
             max_retries=max_retries,
             logger=logger,
-            pagination_usage=pagination_usage,
+            pagination_enabled=pagination_enabled,
             pagination_limit=pagination_limit,
             uri=uri,
         )

@@ -12,7 +12,7 @@ class PrefectFlows(PrefectApiMetric):
         headers,
         max_retries,
         logger,
-        pagination_usage,
+        pagination_enabled,
         pagination_limit,
         uri="flows",
     ) -> None:
@@ -32,7 +32,7 @@ class PrefectFlows(PrefectApiMetric):
             headers=headers,
             max_retries=max_retries,
             logger=logger,
-            pagination_usage=pagination_usage,
+            pagination_enabled=pagination_enabled,
             pagination_limit=pagination_limit,
             uri=uri,
         )

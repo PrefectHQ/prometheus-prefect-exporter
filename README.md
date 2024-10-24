@@ -102,7 +102,7 @@ You can modify environment variables to change the behavior of the exporter.
 | `PREFECT_API_URL` | Prefect API URL | `https://localhost:4200/api` |
 | `PREFECT_API_KEY` | Prefect API KEY (Optional) | `""` |
 | `PREFECT_CSRF_ENABLED` | Enable compatibilty with Prefect Servers using CSRF protection | `False` |
-| `PAGINATION_USAGE` | Enable pagination usage. (Uses more resources) | `False` |
+| `PAGINATION_ENABLED` | Enable pagination usage. (Uses more resources) | `False` |
 | `PAGINATION_LIMIT` | Pagination limit | `200` |
 
 
