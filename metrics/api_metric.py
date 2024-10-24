@@ -10,7 +10,7 @@ class PrefectApiMetric:
     """
 
     def __init__(
-        self, url, headers, max_retries, logger, pagination_usage, pagination_limit, uri
+        self, url, headers, max_retries, logger, enable_pagination, pagination_limit, uri
     ) -> None:
         """
         Initialize the PrefectDeployments instance.
