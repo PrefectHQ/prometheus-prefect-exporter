@@ -21,7 +21,7 @@ def metrics():
     url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
     csrf_client_id = str(uuid.uuid4())
-
+    pagination_limit = int(os.getenv("PAGINATION_LIMIT", "200"))
     # Configure logging
     logging.basicConfig(
         level=loglevel, format="%(asctime)s - %(name)s - [%(levelname)s] %(message)s"
@@ -48,6 +48,8 @@ def metrics():
         client_id=csrf_client_id,
         csrf_enabled=str(os.getenv("PREFECT_CSRF_ENABLED", "False")) == "True",
         logger=logger,
+        pagination_usage=str(os.getenv("PAGINATION_USAGE", "False")) == "True",
+        pagination_limit=int(os.getenv("PAGINATION_LIMIT", 200)),
     )
 
     # Register the metrics with Prometheus

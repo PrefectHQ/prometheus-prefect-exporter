@@ -11,7 +11,7 @@ class PrefectWorkQueues(PrefectApiMetric):
     PrefectWorkQueues class for interacting with Prefect's work queues endpoints.
     """
 
-    def __init__(self, url, headers, max_retries, logger, uri="work_queues") -> None:
+    def __init__(self, url, headers, max_retries, logger, pagination_usage, pagination_limit, uri="work_queues") -> None:
         """
         Initialize the PrefectWorkQueues instance.
 
@@ -24,7 +24,7 @@ class PrefectWorkQueues(PrefectApiMetric):
 
         """
         super().__init__(
-            url=url, headers=headers, max_retries=max_retries, logger=logger, uri=uri
+            url=url, headers=headers, max_retries=max_retries, logger=logger, pagination_usage=pagination_usage, pagination_limit=pagination_limit, uri=uri
         )
 
     def get_work_queues_info(self) -> list:
