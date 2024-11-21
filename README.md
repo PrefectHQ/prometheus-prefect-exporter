@@ -104,6 +104,9 @@ You can modify environment variables to change the behavior of the exporter.
 | `PREFECT_CSRF_ENABLED` | Enable compatibilty with Prefect Servers using CSRF protection | `False` |
 | `PAGINATION_ENABLED` | Enable pagination usage. (Uses more resources) | `True` |
 | `PAGINATION_LIMIT` | Pagination limit | `200` |
+| `PREFECT_API_USER` | Used in combination with the `PREFECT_API_PASSWORD` envrionment variable to configure basic auth. If a `PREFECT_API_KEY` is based then the system will prefer the bearer token method. | `""` |
+| `PREFECT_API_PASSWORD` | Passes a password for basic auth | `""` |
+| `COLLECT_HIGH_CARDINALITY` | Boolean that configures the system to either collect or ignore high cardinality metrics | `True` |
 
 
 ## Contributing
