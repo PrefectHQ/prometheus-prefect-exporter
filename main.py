@@ -27,7 +27,9 @@ def metrics():
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
     api_user = str(os.getenv("PREFECT_API_USER", ""))
     api_password = str(os.getenv("PREFECT_API_PASSWORD", ""))
-    # collect_high_cardinality = literal_eval(os.getenv("COLLECT_HIGH_CARDINALITY", "False"))
+    collect_high_cardinality = literal_eval(
+        os.getenv("COLLECT_HIGH_CARDINALITY", "True")
+    )
     enable_pagination = literal_eval(os.getenv("PAGINATION_ENABLED", "True"))
     pagination_limit = int(os.getenv("PAGINATION_LIMIT", 200))
     csrf_enabled = literal_eval(os.getenv("PREFECT_CSRF_ENABLED", "False"))
@@ -70,6 +72,7 @@ def metrics():
         # Enable pagination if not specified to avoid breaking existing deployments
         enable_pagination=enable_pagination,
         pagination_limit=pagination_limit,
+        collect_high_cardinality=collect_high_cardinality,
     )
 
     # Register the metrics with Prometheus
