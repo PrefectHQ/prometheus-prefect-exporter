@@ -26,6 +26,7 @@ class PrefectMetrics(object):
         logger,
         enable_pagination,
         pagination_limit,
+        collect_high_cardinality,
     ) -> None:
         """
         Initialize the PrefectMetrics instance.
@@ -49,12 +50,14 @@ class PrefectMetrics(object):
         self.pagination_limit = pagination_limit
         self.csrf_token = None
         self.csrf_token_expiration = None
+        self.collect_high_cardinality = collect_high_cardinality
 
     def collect(self):
         """
         Get and set Prefect work queues metrics.
 
         """
+
         ##
         # PREFECT GET CSRF TOKEN IF ENABLED
         #
@@ -68,6 +71,7 @@ class PrefectMetrics(object):
                 self.csrf_token_expiration = token_information.expiration
             self.headers["Prefect-Csrf-Token"] = self.csrf_token
             self.headers["Prefect-Csrf-Client"] = self.client_id
+
         ##
         # NOTIFY IF PAGINATION IS ENABLED
         #
@@ -76,65 +80,58 @@ class PrefectMetrics(object):
             self.logger.info(f"Pagination limit is {self.pagination_limit}")
         else:
             self.logger.info("Pagination is disabled")
+
         ##
         # PREFECT GET RESOURCES
         #
-        deployments = PrefectDeployments(
-            self.url,
-            self.headers,
-            self.max_retries,
-            self.logger,
-            self.enable_pagination,
-            self.pagination_limit,
-        ).get_deployments_info()
-        flows = PrefectFlows(
-            self.url,
-            self.headers,
-            self.max_retries,
-            self.logger,
-            self.enable_pagination,
-            self.pagination_limit,
-        ).get_flows_info()
-        flow_runs = PrefectFlowRuns(
-            self.url,
-            self.headers,
-            self.max_retries,
-            self.offset_minutes,
-            self.logger,
-            self.enable_pagination,
-            self.pagination_limit,
-        ).get_flow_runs_info()
-        all_flow_runs = PrefectFlowRuns(
-            self.url,
-            self.headers,
-            self.max_retries,
-            self.offset_minutes,
-            self.logger,
-            self.enable_pagination,
-            self.pagination_limit,
-        ).get_all_flow_runs_info()
-        work_pools = PrefectWorkPools(
-            self.url,
-            self.headers,
-            self.max_retries,
-            self.logger,
-            self.enable_pagination,
-            self.pagination_limit,
-        ).get_work_pools_info()
-        work_queues = PrefectWorkQueues(
-            self.url,
-            self.headers,
-            self.max_retries,
-            self.logger,
-            self.enable_pagination,
-            self.pagination_limit,
-        ).get_work_queues_info()
+        data = self.get_data()
+
+        ##
+        # Calculate and output metrics prometheus client
+        #
+        if self.collect_high_cardinality:
+            for metric in self.build_high_cardinality_metrics(data):
+                yield metric
+
+        for metric in self.build_low_cardinality_metrics(data):
+            yield metric
+
+    def get_csrf_token(self) -> CsrfToken:
+        """
+        Pull CSRF Token from CSRF Endpoint.
+
+        """
+        for retry in range(self.max_retries):
+            try:
+                csrf_token = requests.get(
+                    f"{self.url}/csrf-token?client={self.client_id}"
+                )
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+        return CsrfToken.parse_obj(csrf_token.json())
+
+    def build_high_cardinality_metrics(self, data):
+        """
+        A method to gather high cardinality metrics if the environment allows
+        """
+
+        # pull required objects out of the data object
+        deployments = data.get("deployments")
+        flows = data.get("flows")
+        flow_runs = data.get("flow_runs")
+        all_flow_runs = data.get("all_flow_runs")
+        work_pools = data.get("work_pools")
+        work_queues = data.get("work_queues")
 
         ##
         # PREFECT DEPLOYMENTS METRICS
         #
 
-        # prefect_deployments metric
         prefect_deployments = GaugeMetricFamily(
             "prefect_deployments_total", "Prefect total deployments", labels=[]
         )
@@ -467,21 +464,73 @@ class PrefectMetrics(object):
 
         yield prefect_info_work_queues
 
-    def get_csrf_token(self) -> CsrfToken:
+    def build_low_cardinality_metrics(self, data):
         """
-        Pull CSRF Token from CSRF Endpoint.
+        A method to gather low cardinality metrics
+        """
+        # yield []
+        return []
 
+    def get_data(self) -> {str, any}:
         """
-        for retry in range(self.max_retries):
-            try:
-                csrf_token = requests.get(
-                    f"{self.url}/csrf-token?client={self.client_id}"
-                )
-            except requests.exceptions.HTTPError as err:
-                self.logger.error(err)
-                if retry >= self.max_retries - 1:
-                    time.sleep(1)
-                    raise SystemExit(err)
-            else:
-                break
-        return CsrfToken.parse_obj(csrf_token.json())
+        Gathers the data requried to calcualte metrics and returns it in a single dictonary object.
+        """
+        data = dict()
+
+        data["deployments"] = PrefectDeployments(
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.logger,
+            self.enable_pagination,
+            self.pagination_limit,
+        ).get_deployments_info()
+
+        data["flows"] = PrefectFlows(
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.logger,
+            self.enable_pagination,
+            self.pagination_limit,
+        ).get_flows_info()
+
+        data["flow_runs"] = PrefectFlowRuns(
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.offset_minutes,
+            self.logger,
+            self.enable_pagination,
+            self.pagination_limit,
+        ).get_flow_runs_info()
+
+        data["all_flow_runs"] = PrefectFlowRuns(
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.offset_minutes,
+            self.logger,
+            self.enable_pagination,
+            self.pagination_limit,
+        ).get_all_flow_runs_info()
+
+        data["work_pools"] = PrefectWorkPools(
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.logger,
+            self.enable_pagination,
+            self.pagination_limit,
+        ).get_work_pools_info()
+
+        data["work_queues"] = PrefectWorkQueues(
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.logger,
+            self.enable_pagination,
+            self.pagination_limit,
+        ).get_work_queues_info()
+
+        return data
