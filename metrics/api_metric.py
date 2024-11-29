@@ -74,15 +74,17 @@ class PrefectApiMetric:
 
             curr_page_items = resp.json()
 
-            # If pagination is not used, break the loop
-            if not enable_pagination:
-                break
-
             # If the current page is empty, break the loop
             if not curr_page_items:
                 break
 
+            # The page has items. Extend the item set.
             all_items.extend(curr_page_items)
+
+            # If pagination is not used, break the loop
+            if not enable_pagination:
+                break
+
             offset += limit
 
         return all_items
