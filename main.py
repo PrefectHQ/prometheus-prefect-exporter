@@ -38,6 +38,17 @@ def metrics():
         url=url, headers=headers, max_retries=max_retries, logger=logger
     ).get_health_check()
 
+    ##
+    # NOTIFY IF PAGINATION IS ENABLED
+    #
+    enable_pagination = str(os.getenv("PAGINATION_ENABLED", "True")) == "True"
+    pagination_limit = int(os.getenv("PAGINATION_LIMIT", 200))
+    if enable_pagination:
+        logger.info("Pagination is enabled")
+        logger.info(f"Pagination limit is {pagination_limit}")
+    else:
+        logger.info("Pagination is disabled")
+
     # Create an instance of the PrefectMetrics class
     metrics = PrefectMetrics(
         url=url,
@@ -48,8 +59,8 @@ def metrics():
         csrf_enabled=str(os.getenv("PREFECT_CSRF_ENABLED", "False")) == "True",
         logger=logger,
         # Enable pagination if not specified to avoid breaking existing deployments
-        enable_pagination=str(os.getenv("PAGINATION_ENABLED", "True")) == "True",
-        pagination_limit=int(os.getenv("PAGINATION_LIMIT", 200)),
+        enable_pagination=enable_pagination,
+        pagination_limit=pagination_limit,
     )
 
     # Register the metrics with Prometheus
