@@ -36,7 +36,10 @@ class PrefectMetrics(object):
             offset_minutes (int): Time offset in minutes.
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
-
+            csrf_enabled (bool): Whether CSRF is enabled.
+            client_id (str): The client ID for CSRF.
+            enable_pagination (bool): Whether pagination is enabled.
+            pagination_limit (int): The pagination limit.
         """
         self.headers = headers
         self.offset_minutes = offset_minutes
@@ -281,7 +284,6 @@ class PrefectMetrics(object):
 
         yield prefect_flow_runs_total_run_time
 
-        # prefect_info_flow_runs metric
         prefect_info_flow_runs = GaugeMetricFamily(
             "prefect_info_flow_runs",
             "Prefect flow runs info",
