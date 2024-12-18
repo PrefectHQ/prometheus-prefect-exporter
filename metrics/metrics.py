@@ -41,6 +41,7 @@ class PrefectMetrics(object):
             enable_pagination (bool): Whether pagination is enabled.
             pagination_limit (int): The pagination limit.
         """
+
         self.headers = headers
         self.offset_minutes = offset_minutes
         self.url = url
@@ -284,6 +285,7 @@ class PrefectMetrics(object):
 
         yield prefect_flow_runs_total_run_time
 
+        # prefect_info_flow_runs metric
         prefect_info_flow_runs = GaugeMetricFamily(
             "prefect_info_flow_runs",
             "Prefect flow runs info",
