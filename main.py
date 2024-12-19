@@ -17,10 +17,11 @@ def metrics():
     loglevel = str(os.getenv("LOG_LEVEL", "INFO"))
     max_retries = int(os.getenv("MAX_RETRIES", "3"))
     metrics_port = int(os.getenv("METRICS_PORT", "8000"))
-    offset_minutes = int(os.getenv("OFFSET_MINUTES", "5"))
+    offset_minutes = int(os.getenv("OFFSET_MINUTES", "3"))
     url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
     csrf_client_id = str(uuid.uuid4())
+    scrape_interval_seconds = int(os.getenv("SCRAPE_INTERVAL_SECONDS", "30"))
     # Configure logging
     logging.basicConfig(
         level=loglevel, format="%(asctime)s - %(name)s - [%(levelname)s] %(message)s"
@@ -73,7 +74,7 @@ def metrics():
 
     # Run the loop to collect Prefect metrics
     while True:
-        time.sleep(5)
+        time.sleep(scrape_interval_seconds)
 
 
 if __name__ == "__main__":

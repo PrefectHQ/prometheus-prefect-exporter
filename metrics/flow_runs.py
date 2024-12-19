@@ -71,6 +71,13 @@ class PrefectFlowRuns(PrefectApiMetric):
         Returns:
             dict: JSON response containing flow runs information.
         """
-        all_flow_runs = self._get_with_pagination()
+        all_flow_runs = self._get_with_pagination(
+            base_data={
+                "flow_runs": {
+                    "operator": "and_",
+                    "end_time": {"after_": f"{self.after_data_fmt}"},
+                }
+            }
+        )
 
         return all_flow_runs
