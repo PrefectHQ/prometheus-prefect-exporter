@@ -16,6 +16,7 @@ def metrics():
     # Get environment variables or use default values
     loglevel = str(os.getenv("LOG_LEVEL", "INFO"))
     max_retries = int(os.getenv("MAX_RETRIES", "3"))
+    metrics_addr = os.getenv("METRICS_ADDR", "0.0.0.0")
     metrics_port = int(os.getenv("METRICS_PORT", "8000"))
     offset_minutes = int(os.getenv("OFFSET_MINUTES", "3"))
     url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
@@ -69,8 +70,8 @@ def metrics():
     REGISTRY.register(metrics)
 
     # Start the HTTP server to expose Prometheus metrics
-    start_http_server(metrics_port)
-    logger.info(f"Exporter listening on port :{metrics_port}")
+    start_http_server(metrics_port, metrics_addr)
+    logger.info(f"Exporter listening on {metrics_addr}:{metrics_port}")
 
     # Run the loop to collect Prefect metrics
     while True:

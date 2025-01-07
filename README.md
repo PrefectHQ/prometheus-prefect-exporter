@@ -97,6 +97,7 @@ You can modify environment variables to change the behavior of the exporter.
 | --- | --- | --- |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `MAX_RETRIES` | Number of retries to attempt when fetching metrics from Prefect API | `3` |
+| `METRICS_ADDR` | Address to expose metrics on | `0.0.0.0` |
 | `METRICS_PORT` | Port to expose metrics on | `8000` |
 | `OFFSET_MINUTES` | Number of minutes to offset the start time when fetching metrics from Prefect API | `5` |
 | `PREFECT_API_URL` | Prefect API URL | `https://localhost:4200/api` |
