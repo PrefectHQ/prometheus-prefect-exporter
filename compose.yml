@@ -5,6 +5,7 @@ services:
       - "4200:4200"
     environment:
       PREFECT_LOGGING_LEVEL: debug
+      # PREFECT_SERVER_API_AUTH_STRING: ""
     command:
       - prefect
       - server
@@ -23,6 +24,7 @@ services:
       - "8000:8000"
     environment:
       PREFECT_API_URL: http://prefect:4200/api
+      # PREFECT_API_AUTH_STRING: ""
     depends_on:
       prefect:
         condition: service_healthy

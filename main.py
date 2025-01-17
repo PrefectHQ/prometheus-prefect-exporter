@@ -1,4 +1,5 @@
 import os
+import base64
 import logging
 import time
 import uuid
@@ -21,6 +22,7 @@ def metrics():
     offset_minutes = int(os.getenv("OFFSET_MINUTES", "3"))
     url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
+    api_auth_string = str(os.getenv("PREFECT_API_AUTH_STRING", ""))
     csrf_client_id = str(uuid.uuid4())
     scrape_interval_seconds = int(os.getenv("SCRAPE_INTERVAL_SECONDS", "30"))
     # Configure logging
@@ -32,8 +34,14 @@ def metrics():
     # Configure headers for HTTP requests
     headers = {"accept": "application/json", "Content-Type": "application/json"}
 
+    if api_auth_string:
+        api_auth_string_encoded = base64.b64encode(api_auth_string.encode("utf-8")).decode("utf-8")
+        headers["Authorization"] = f"Basic {api_auth_string_encoded}"
+        logger.info("Added Basic Authorization header for PREFECT_API_AUTH_STRING")
+
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
+        logger.info("Added Bearer Authorization header for PREFECT_API_KEY")
 
     # check endpoint
     PrefectHealthz(
