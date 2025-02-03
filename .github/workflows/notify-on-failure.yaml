@@ -6,6 +6,7 @@ name: Notify on Failure
     workflows:
       - Build and Publish prometheus-prefect-exporter Image
       - Trigger Downstream Helm Chart Release
+      - Update mise tool versions
     types: [completed]
 
 permissions: {}
