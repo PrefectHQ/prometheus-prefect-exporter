@@ -9,3 +9,4 @@
 - [ ] Body includes `Closes <issue>`, if available
 - [ ] Relevant labels are added
 - [ ] Changes have been validated by running the provider using Docker Compose
+- [ ] `Draft` status is used until ready for review
