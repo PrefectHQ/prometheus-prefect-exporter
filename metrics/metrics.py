@@ -1,13 +1,15 @@
+import time
+
+import pendulum
+import requests
+from prefect.client.schemas.objects import CsrfToken
+from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
+
 from metrics.deployments import PrefectDeployments
 from metrics.flow_runs import PrefectFlowRuns
 from metrics.flows import PrefectFlows
 from metrics.work_pools import PrefectWorkPools
 from metrics.work_queues import PrefectWorkQueues
-import requests
-import time
-from prefect.client.schemas.objects import CsrfToken
-import pendulum
-from prometheus_client.core import GaugeMetricFamily, CounterMetricFamily
 
 
 class PrefectMetrics(object):
@@ -154,6 +156,7 @@ class PrefectMetrics(object):
                 "work_pool_name",
                 "work_queue_name",
                 "status",
+                "tags",
             ],
         )
 
@@ -180,6 +183,10 @@ class PrefectMetrics(object):
                 # is the opposite of "paused".
                 is_schedule_active = not is_schedule_active
 
+            tags = deployment.get("tags", "null")
+            if tags != "null":
+                tags = ",".join(sorted(tags))
+
             prefect_info_deployments.add_metric(
                 [
                     str(deployment.get("created", "null")),
@@ -193,6 +200,7 @@ class PrefectMetrics(object):
                     str(deployment.get("work_pool_name", "null")),
                     str(deployment.get("work_queue_name", "null")),
                     str(deployment.get("status", "null")),
+                    tags,
                 ],
                 1,
             )
@@ -473,7 +481,7 @@ class PrefectMetrics(object):
             try:
                 csrf_token = requests.get(
                     f"{self.url}/csrf-token?client={self.client_id}",
-                    headers=self.headers
+                    headers=self.headers,
                 )
             except requests.exceptions.HTTPError as err:
                 self.logger.error(err)
