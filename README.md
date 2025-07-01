@@ -107,7 +107,6 @@ You can modify environment variables to change the behavior of the exporter.
 | `PREFECT_CSRF_ENABLED` | Enable compatibilty with Prefect Servers using CSRF protection | `False` |
 | `PAGINATION_ENABLED` | Enable pagination usage. (Uses more resources) | `True` |
 | `PAGINATION_LIMIT` | Pagination limit | `200` |
-| `SCRAPE_INTERVAL_SECONDS` | Interval in seconds to scrape metrics from Prefect API | `30` |
 
 
 ## Contributing
