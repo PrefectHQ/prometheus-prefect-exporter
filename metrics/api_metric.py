@@ -100,7 +100,7 @@ class PrefectApiMetric:
             list: JSON response from the endpoint.
         """
         endpoint = f"{self.url}/{self.uri}/filter"
-        
+
         for retry in range(self.max_retries):
             try:
                 resp = requests.post(endpoint, headers=self.headers, json=data or {})
@@ -115,7 +115,9 @@ class PrefectApiMetric:
 
         return resp.json()
 
-    def _post_to_endpoint(self, endpoint_suffix: str, data: Optional[dict] = None) -> list:
+    def _post_to_endpoint(
+        self, endpoint_suffix: str, data: Optional[dict] = None
+    ) -> dict:
         """
         Make a POST request to a specific endpoint suffix.
 
@@ -127,7 +129,7 @@ class PrefectApiMetric:
             list: JSON response from the endpoint.
         """
         endpoint = f"{self.url}/{self.uri}/{endpoint_suffix}"
-        
+
         for retry in range(self.max_retries):
             try:
                 resp = requests.post(endpoint, headers=self.headers, json=data or {})

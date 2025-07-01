@@ -103,11 +103,11 @@ class PrefectMetrics(object):
             self.enable_pagination,
             self.pagination_limit,
         )
-        
+
         # Get recent flow runs (within time window) for detailed metrics
         flow_runs = flow_runs_client.get_flow_runs_info()
-        
-        # Use minimal endpoint for total count and run time metrics (memory efficient)
+
+        # Use count endpoint for total count and filter endpoint for run time metrics (compatible with Cloud and OSS)
         flow_runs_count = flow_runs_client.get_flow_runs_count()
         minimal_flow_runs = flow_runs_client.get_flow_runs_minimal()
         work_pools = PrefectWorkPools(
@@ -246,7 +246,7 @@ class PrefectMetrics(object):
         prefect_flow_runs.add_metric([], flow_runs_count)
         yield prefect_flow_runs
 
-        # prefect_flow_runs_total_run_time metric using minimal endpoint (memory efficient)
+        # prefect_flow_runs_total_run_time metric using filter endpoint (compatible with Cloud and OSS)
         prefect_flow_runs_total_run_time = CounterMetricFamily(
             "prefect_flow_runs_total_run_time",
             "Prefect flow-run total run time in seconds",

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import pendulum
 
 from metrics.api_metric import PrefectApiMetric
 
@@ -64,17 +65,16 @@ class PrefectFlowRuns(PrefectApiMetric):
 
         return flow_runs
 
-
     def get_flow_runs_minimal(self) -> list:
         """
-        Get minimal information about all flow runs using the minimal endpoint.
-        This is more memory efficient than fetching full flow run details.
+        Get minimal information about all flow runs using the standard filter endpoint.
+        This is compatible with both Prefect Cloud and OSS.
 
         Returns:
-            list: Minimal flow run data including total_run_time.
+            list: Flow run data from filter endpoint.
         """
-        minimal_flow_runs = self._post_to_endpoint(
-            endpoint_suffix="filter/minimal",
+        flow_runs = self._post_to_endpoint(
+            endpoint_suffix="filter",
             data={
                 "flow_runs": {
                     "operator": "and_",
@@ -82,9 +82,11 @@ class PrefectFlowRuns(PrefectApiMetric):
             }
         )
         
-        return minimal_flow_runs
+        return flow_runs
 
-    def get_flow_runs_history(self, history_start: str = None, history_end: str = None) -> dict:
+    def get_flow_runs_history(
+        self, history_start: str = "", history_end: str = ""
+    ) -> dict:
         """
         Get flow run history and aggregated metrics using the history endpoint.
         This provides server-side aggregations without loading all flow run data.
@@ -101,26 +103,35 @@ class PrefectFlowRuns(PrefectApiMetric):
                 "operator": "and_",
             }
         }
-        
-        if history_start:
-            history_data["history_start"] = history_start
-        if history_end:
-            history_data["history_end"] = history_end
-        
+
+        if not history_start:
+            history_start = str(pendulum.now("UTC"))
+
+        if not history_end:
+            history_end = str(pendulum.now("UTC") + timedelta(days=1))
+
         history_response = self._post_to_endpoint(
-            endpoint_suffix="history",
-            data=history_data
+            endpoint_suffix="history", data=history_data
         )
-        
+
         return history_response
 
     def get_flow_runs_count(self) -> int:
         """
-        Get the total count of all flow runs using the minimal endpoint.
-        This is more memory efficient than fetching all flow runs.
+        Get the total count of all flow runs using the count endpoint.
+        This is compatible with both Prefect Cloud and OSS.
 
         Returns:
             int: Total count of flow runs.
         """
-        minimal_flow_runs = self.get_flow_runs_minimal()
-        return len(minimal_flow_runs)
+        count_response = self._post_to_endpoint(
+            endpoint_suffix="count",
+        )
+
+        # Count endpoint returns just an integer
+        if isinstance(count_response, int):
+            return count_response
+        elif isinstance(count_response, dict) and "count" in count_response:
+            return count_response["count"]
+        else:
+            return 0
