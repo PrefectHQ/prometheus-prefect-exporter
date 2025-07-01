@@ -94,7 +94,7 @@ class PrefectMetrics(object):
             self.enable_pagination,
             self.pagination_limit,
         ).get_flows_info()
-        flow_runs = PrefectFlowRuns(
+        flow_runs_client = PrefectFlowRuns(
             self.url,
             self.headers,
             self.max_retries,
@@ -102,16 +102,14 @@ class PrefectMetrics(object):
             self.logger,
             self.enable_pagination,
             self.pagination_limit,
-        ).get_flow_runs_info()
-        all_flow_runs = PrefectFlowRuns(
-            self.url,
-            self.headers,
-            self.max_retries,
-            self.offset_minutes,
-            self.logger,
-            self.enable_pagination,
-            self.pagination_limit,
-        ).get_all_flow_runs_info()
+        )
+        
+        # Get recent flow runs (within time window) for detailed metrics
+        flow_runs = flow_runs_client.get_flow_runs_info()
+        
+        # Use minimal endpoint for total count and run time metrics (memory efficient)
+        flow_runs_count = flow_runs_client.get_flow_runs_count()
+        minimal_flow_runs = flow_runs_client.get_flow_runs_minimal()
         work_pools = PrefectWorkPools(
             self.url,
             self.headers,
@@ -245,17 +243,17 @@ class PrefectMetrics(object):
         prefect_flow_runs = GaugeMetricFamily(
             "prefect_flow_runs_total", "Prefect total flow runs", labels=[]
         )
-        prefect_flow_runs.add_metric([], len(all_flow_runs))
+        prefect_flow_runs.add_metric([], flow_runs_count)
         yield prefect_flow_runs
 
-        # prefect_flow_runs_total_run_time metric
+        # prefect_flow_runs_total_run_time metric using minimal endpoint (memory efficient)
         prefect_flow_runs_total_run_time = CounterMetricFamily(
             "prefect_flow_runs_total_run_time",
             "Prefect flow-run total run time in seconds",
             labels=["flow_id", "flow_name", "flow_run_name"],
         )
 
-        for flow_run in all_flow_runs:
+        for flow_run in minimal_flow_runs:
             # get deployment name
             if flow_run.get("deployment_id") is None:
                 deployment_name = "null"
@@ -282,14 +280,16 @@ class PrefectMetrics(object):
                     "null",
                 )
 
-            prefect_flow_runs_total_run_time.add_metric(
-                [
-                    str(flow_run.get("flow_id", "null")),
-                    str(flow_name),
-                    str(flow_run.get("name", "null")),
-                ],
-                str(flow_run.get("total_run_time", "null")),
-            )
+            # Only add metric if total_run_time is available
+            if flow_run.get("total_run_time") is not None:
+                prefect_flow_runs_total_run_time.add_metric(
+                    [
+                        str(flow_run.get("flow_id", "null")),
+                        str(flow_name),
+                        str(flow_run.get("name", "null")),
+                    ],
+                    str(flow_run.get("total_run_time", 0)),
+                )
 
         yield prefect_flow_runs_total_run_time
 

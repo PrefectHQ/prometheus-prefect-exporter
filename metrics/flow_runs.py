@@ -64,20 +64,63 @@ class PrefectFlowRuns(PrefectApiMetric):
 
         return flow_runs
 
-    def get_all_flow_runs_info(self) -> list:
+
+    def get_flow_runs_minimal(self) -> list:
         """
-        Get information about all flow runs.
+        Get minimal information about all flow runs using the minimal endpoint.
+        This is more memory efficient than fetching full flow run details.
 
         Returns:
-            dict: JSON response containing flow runs information.
+            list: Minimal flow run data including total_run_time.
         """
-        all_flow_runs = self._get_with_pagination(
-            base_data={
+        minimal_flow_runs = self._post_to_endpoint(
+            endpoint_suffix="filter/minimal",
+            data={
                 "flow_runs": {
                     "operator": "and_",
-                    "end_time": {"after_": f"{self.after_data_fmt}"},
                 }
             }
         )
+        
+        return minimal_flow_runs
 
-        return all_flow_runs
+    def get_flow_runs_history(self, history_start: str = None, history_end: str = None) -> dict:
+        """
+        Get flow run history and aggregated metrics using the history endpoint.
+        This provides server-side aggregations without loading all flow run data.
+
+        Args:
+            history_start (str): Start time for history window (ISO format).
+            history_end (str): End time for history window (ISO format).
+
+        Returns:
+            dict: Flow run history and aggregated metrics.
+        """
+        history_data = {
+            "flow_runs": {
+                "operator": "and_",
+            }
+        }
+        
+        if history_start:
+            history_data["history_start"] = history_start
+        if history_end:
+            history_data["history_end"] = history_end
+        
+        history_response = self._post_to_endpoint(
+            endpoint_suffix="history",
+            data=history_data
+        )
+        
+        return history_response
+
+    def get_flow_runs_count(self) -> int:
+        """
+        Get the total count of all flow runs using the minimal endpoint.
+        This is more memory efficient than fetching all flow runs.
+
+        Returns:
+            int: Total count of flow runs.
+        """
+        minimal_flow_runs = self.get_flow_runs_minimal()
+        return len(minimal_flow_runs)

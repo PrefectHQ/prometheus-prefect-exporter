@@ -88,3 +88,56 @@ class PrefectApiMetric:
             offset += limit
 
         return all_items
+
+    def _post(self, data: Optional[dict] = None) -> list:
+        """
+        Make a direct POST request to the endpoint.
+
+        Args:
+            data (dict): Request payload.
+
+        Returns:
+            list: JSON response from the endpoint.
+        """
+        endpoint = f"{self.url}/{self.uri}/filter"
+        
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.post(endpoint, headers=self.headers, json=data or {})
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        return resp.json()
+
+    def _post_to_endpoint(self, endpoint_suffix: str, data: Optional[dict] = None) -> list:
+        """
+        Make a POST request to a specific endpoint suffix.
+
+        Args:
+            endpoint_suffix (str): The endpoint suffix (e.g., 'minimal', 'history').
+            data (dict): Request payload.
+
+        Returns:
+            list: JSON response from the endpoint.
+        """
+        endpoint = f"{self.url}/{self.uri}/{endpoint_suffix}"
+        
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.post(endpoint, headers=self.headers, json=data or {})
+                resp.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                self.logger.error(err)
+                if retry >= self.max_retries - 1:
+                    time.sleep(1)
+                    raise SystemExit(err)
+            else:
+                break
+
+        return resp.json()
