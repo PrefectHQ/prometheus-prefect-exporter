@@ -495,4 +495,5 @@ class PrefectMetrics(object):
                     raise SystemExit(err)
             else:
                 break
-        return CsrfToken.parse_obj(csrf_token.json())
+
+        return CsrfToken.model_validate(csrf_token.json())
