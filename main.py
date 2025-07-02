@@ -1,7 +1,7 @@
 import os
 import base64
 import logging
-import time
+import threading
 import uuid
 
 from metrics.metrics import PrefectMetrics
@@ -24,7 +24,6 @@ def metrics():
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
     api_auth_string = str(os.getenv("PREFECT_API_AUTH_STRING", ""))
     csrf_client_id = str(uuid.uuid4())
-    scrape_interval_seconds = int(os.getenv("SCRAPE_INTERVAL_SECONDS", "30"))
     # Configure logging
     logging.basicConfig(
         level=loglevel, format="%(asctime)s - %(name)s - [%(levelname)s] %(message)s"
@@ -81,9 +80,11 @@ def metrics():
     start_http_server(metrics_port, metrics_addr)
     logger.info(f"Exporter listening on {metrics_addr}:{metrics_port}")
 
-    # Run the loop to collect Prefect metrics
-    while True:
-        time.sleep(scrape_interval_seconds)
+    # Keep the process alive
+    try:
+        threading.Event().wait()
+    except KeyboardInterrupt:
+        logger.info("Shutting down...")
 
 
 if __name__ == "__main__":
