@@ -291,7 +291,7 @@ class PrefectMetrics(object):
                     str(flow_name),
                     str(flow_run.get("name", "null")),
                 ],
-                str(flow_run.get("total_run_time", "null")),
+                flow_run.get("total_run_time", "null"),
             )
 
         yield prefect_flow_runs_total_run_time
