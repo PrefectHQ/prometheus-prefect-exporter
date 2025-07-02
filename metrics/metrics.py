@@ -477,6 +477,8 @@ class PrefectMetrics(object):
         Pull CSRF Token from CSRF Endpoint.
 
         """
+        csrf_token = requests.Response()
+
         for retry in range(self.max_retries):
             try:
                 csrf_token = requests.get(

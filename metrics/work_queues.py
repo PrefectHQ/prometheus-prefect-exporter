@@ -71,6 +71,7 @@ class PrefectWorkQueues(PrefectApiMetric):
 
         """
         endpoint = f"{self.url}/{self.uri}/{work_queue_id}/status"
+        resp = requests.Response()
 
         for retry in range(self.max_retries):
             try:

@@ -54,6 +54,8 @@ class PrefectApiMetric:
 
         # Run the loop until the current page is empty
         while True:
+            resp = requests.Response()
+
             for retry in range(self.max_retries):
                 data = {
                     **(base_data or {}),
