@@ -6,6 +6,8 @@ services:
     environment:
       PREFECT_LOGGING_LEVEL: debug
       # PREFECT_SERVER_API_AUTH_STRING: ""
+      # PREFECT_SERVER_API_CSRF_PROTECTION_ENABLED: "True"
+      # PREFECT_SERVER_CSRF_PROTECTION_ENABLED: "True"
     command:
       - prefect
       - server
@@ -25,6 +27,7 @@ services:
     environment:
       PREFECT_API_URL: http://prefect:4200/api
       # PREFECT_API_AUTH_STRING: ""
+      # PREFECT_CSRF_ENABLED: "True"
     depends_on:
       prefect:
         condition: service_healthy
