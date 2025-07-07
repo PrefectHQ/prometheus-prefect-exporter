@@ -1,6 +1,6 @@
 import time
+from datetime import datetime, timezone
 
-import pendulum
 import requests
 from prefect.client.schemas.objects import CsrfToken
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
@@ -65,7 +65,10 @@ class PrefectMetrics(object):
         # PREFECT GET CSRF TOKEN IF ENABLED
         #
         if self.csrf_enabled:
-            if not self.csrf_token or pendulum.now("UTC") > self.csrf_token_expiration:
+            if not self.csrf_token or (
+                self.csrf_token_expiration is not None
+                and datetime.now(timezone.utc) > self.csrf_token_expiration
+            ):
                 self.logger.info(
                     "CSRF Token is expired or has not been generated yet. Fetching new CSRF Token..."
                 )
@@ -288,7 +291,7 @@ class PrefectMetrics(object):
                     str(flow_name),
                     str(flow_run.get("name", "null")),
                 ],
-                str(flow_run.get("total_run_time", "null")),
+                flow_run.get("total_run_time", "null"),
             )
 
         yield prefect_flow_runs_total_run_time
@@ -477,6 +480,8 @@ class PrefectMetrics(object):
         Pull CSRF Token from CSRF Endpoint.
 
         """
+        csrf_token = requests.Response()
+
         for retry in range(self.max_retries):
             try:
                 csrf_token = requests.get(
@@ -490,4 +495,5 @@ class PrefectMetrics(object):
                     raise SystemExit(err)
             else:
                 break
-        return CsrfToken.parse_obj(csrf_token.json())
+
+        return CsrfToken.model_validate(csrf_token.json())
