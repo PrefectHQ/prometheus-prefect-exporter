@@ -149,7 +149,6 @@ class PrefectMetrics(object):
             "Prefect deployment info",
             labels=[
                 "created",
-                "flow_id",
                 "flow_name",
                 "is_schedule_active",
                 "deployment_name",
@@ -192,7 +191,6 @@ class PrefectMetrics(object):
             prefect_info_deployments.add_metric(
                 [
                     str(deployment.get("created", "null")),
-                    str(deployment.get("flow_id", "null")),
                     str(flow_name),
                     str(deployment.get("id", "null")),
                     str(is_schedule_active),
@@ -224,7 +222,7 @@ class PrefectMetrics(object):
         prefect_info_flows = GaugeMetricFamily(
             "prefect_info_flows",
             "Prefect flow info",
-            labels=["created", "flow_id", "flow_name"],
+            labels=["created", "flow_name"],
         )
 
         for flow in flows:
@@ -254,7 +252,7 @@ class PrefectMetrics(object):
         prefect_flow_runs_total_run_time = CounterMetricFamily(
             "prefect_flow_runs_total_run_time",
             "Prefect flow-run total run time in seconds",
-            labels=["flow_id", "flow_name", "flow_run_name"],
+            labels=["flow_name", "flow_run_name"],
         )
 
         for flow_run in all_flow_runs:
@@ -286,7 +284,6 @@ class PrefectMetrics(object):
 
             prefect_flow_runs_total_run_time.add_metric(
                 [
-                    str(flow_run.get("flow_id", "null")),
                     str(flow_name),
                     str(flow_run.get("name", "null")),
                 ],
@@ -303,7 +300,6 @@ class PrefectMetrics(object):
                 "created",
                 "deployment_name",
                 "end_time",
-                "flow_id",
                 "flow_name",
                 "flow_run_id",
                 "flow_run_name",
@@ -350,7 +346,6 @@ class PrefectMetrics(object):
                     str(flow_run.get("created", "null")),
                     str(deployment_name),
                     str(flow_run.get("end_time", "null")),
-                    str(flow_run.get("flow_id", "null")),
                     str(flow_name),
                     str(flow_run.get("id", "null")),
                     str(flow_run.get("name", "null")),
