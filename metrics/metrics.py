@@ -151,7 +151,6 @@ class PrefectMetrics(object):
                 "created",
                 "flow_id",
                 "flow_name",
-                "deployment_id",
                 "is_schedule_active",
                 "deployment_name",
                 "path",
@@ -302,7 +301,6 @@ class PrefectMetrics(object):
             "Prefect flow runs info",
             labels=[
                 "created",
-                "deployment_id",
                 "deployment_name",
                 "end_time",
                 "flow_id",
@@ -350,7 +348,6 @@ class PrefectMetrics(object):
             prefect_info_flow_runs.add_metric(
                 [
                     str(flow_run.get("created", "null")),
-                    str(flow_run.get("deployment_id", "null")),
                     str(deployment_name),
                     str(flow_run.get("end_time", "null")),
                     str(flow_run.get("flow_id", "null")),
