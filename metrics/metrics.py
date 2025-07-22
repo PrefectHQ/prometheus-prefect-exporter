@@ -192,7 +192,6 @@ class PrefectMetrics(object):
                 [
                     str(deployment.get("created", "null")),
                     str(flow_name),
-                    str(deployment.get("id", "null")),
                     str(is_schedule_active),
                     str(deployment.get("name", "null")),
                     str(deployment.get("path", "null")),
@@ -229,7 +228,6 @@ class PrefectMetrics(object):
             prefect_info_flows.add_metric(
                 [
                     str(flow.get("created", "null")),
-                    str(flow.get("id", "null")),
                     str(flow.get("name", "null")),
                 ],
                 1,
@@ -301,11 +299,9 @@ class PrefectMetrics(object):
                 "deployment_name",
                 "end_time",
                 "flow_name",
-                "flow_run_id",
                 "flow_run_name",
                 "run_count",
                 "start_time",
-                "state_id",
                 "state_name",
                 "total_run_time",
                 "work_queue_name",
@@ -347,11 +343,9 @@ class PrefectMetrics(object):
                     str(deployment_name),
                     str(flow_run.get("end_time", "null")),
                     str(flow_name),
-                    str(flow_run.get("id", "null")),
                     str(flow_run.get("name", "null")),
                     str(flow_run.get("run_count", "null")),
                     str(flow_run.get("start_time", "null")),
-                    str(flow_run.get("state_id", "null")),
                     str(flow_run.get("state_name", "null")),
                     str(flow_run.get("total_run_time", "null")),
                     str(flow_run.get("work_queue_name", "null")),
@@ -378,8 +372,6 @@ class PrefectMetrics(object):
             "Prefect work pools info",
             labels=[
                 "created",
-                "work_queue_id",
-                "work_pool_id",
                 "is_paused",
                 "work_pool_name",
                 "type",
@@ -392,8 +384,6 @@ class PrefectMetrics(object):
             prefect_info_work_pools.add_metric(
                 [
                     str(work_pool.get("created", "null")),
-                    str(work_pool.get("default_queue_id", "null")),
-                    str(work_pool.get("id", "null")),
                     str(work_pool.get("is_paused", "null")),
                     str(work_pool.get("name", "null")),
                     str(work_pool.get("type", "null")),
@@ -421,12 +411,10 @@ class PrefectMetrics(object):
             "Prefect work queues info",
             labels=[
                 "created",
-                "work_queue_id",
                 "is_paused",
                 "work_queue_name",
                 "priority",
                 "type",
-                "work_pool_id",
                 "work_pool_name",
                 "status",
                 "healthy",
@@ -444,12 +432,10 @@ class PrefectMetrics(object):
             prefect_info_work_queues.add_metric(
                 [
                     str(work_queue.get("created", "null")),
-                    str(work_queue.get("id", "null")),
                     str(work_queue.get("is_paused", "null")),
                     str(work_queue.get("name", "null")),
                     str(work_queue.get("priority", "null")),
                     str(work_queue.get("type", "null")),
-                    str(work_queue.get("work_pool_id", "null")),
                     str(work_queue.get("work_pool_name", "null")),
                     str(work_queue.get("status", "null")),
                     str(status_info.get("healthy", "null")),
