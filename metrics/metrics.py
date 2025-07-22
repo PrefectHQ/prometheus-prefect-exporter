@@ -250,7 +250,7 @@ class PrefectMetrics(object):
         prefect_flow_runs_total_run_time = CounterMetricFamily(
             "prefect_flow_runs_total_run_time",
             "Prefect flow-run total run time in seconds",
-            labels=["flow_name", "flow_run_name"],
+            labels=["flow_name"],
         )
 
         for flow_run in all_flow_runs:
@@ -299,7 +299,6 @@ class PrefectMetrics(object):
                 "deployment_name",
                 "end_time",
                 "flow_name",
-                "flow_run_name",
                 "run_count",
                 "start_time",
                 "state_name",
