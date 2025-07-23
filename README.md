@@ -105,8 +105,8 @@ You can modify environment variables to change the behavior of the exporter.
 | `PREFECT_API_KEY` | Prefect API key (Optional) | `""` |
 | `PREFECT_API_AUTH_STRING` | Prefect API auth string, automatically base64-encoded (Optional) | `""` |
 | `PREFECT_CSRF_ENABLED` | Enable compatibilty with Prefect Servers using CSRF protection | `False` |
-| `PAGINATION_ENABLED` | Enable pagination usage. (Uses more resources) | `True` |
-| `PAGINATION_LIMIT` | Pagination limit | `200` |
+| `PAGINATION_ENABLED` | Enable pagination for API requests. Can help reduce server load and avoid timeouts. Can be disabled on very small instances. | `True` |
+| `PAGINATION_LIMIT` | Number of results to retrieve per request when pagination is enabled. Consider lowering this value for large instances to make more, but smaller, requests. | `200` |
 
 
 ## Contributing
