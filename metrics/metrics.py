@@ -295,6 +295,7 @@ class PrefectMetrics(object):
                 "deployment_name",
                 "end_time",
                 "flow_name",
+                "flow_run_name",
                 "run_count",
                 "start_time",
                 "state_name",
