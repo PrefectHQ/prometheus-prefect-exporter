@@ -337,7 +337,6 @@ class PrefectMetrics(object):
                     str(deployment_name),
                     str(flow_run.get("end_time", "null")),
                     str(flow_name),
-                    str(flow_run.get("name", "null")),
                     str(flow_run.get("run_count", "null")),
                     str(flow_run.get("start_time", "null")),
                     str(flow_run.get("state_name", "null")),
