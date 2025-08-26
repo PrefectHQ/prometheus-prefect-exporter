@@ -301,6 +301,7 @@ class PrefectMetrics(object):
                 "total_run_time",
                 "work_queue_name",
                 "estimated_start_time_delta",
+                "estimated_run_time",
             ],
         )
 
@@ -344,6 +345,7 @@ class PrefectMetrics(object):
                     str(flow_run.get("total_run_time", "null")),
                     str(flow_run.get("work_queue_name", "null")),
                     str(flow_run.get("estimated_start_time_delta", "null")),
+                    str(flow_run.get("estimated_run_time", "null")),
                 ],
                 state,
             )
