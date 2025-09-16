@@ -356,7 +356,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(prefect_info_flow_runs_total{state_name=\"Running\"}[5m]))",
+          "expr": "sum(rate(prefect_info_flow_runs{state_name=\"Running\"}[5m]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -421,7 +421,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(prefect_info_flow_runs_total[5m]))",
+          "expr": "sum(rate(prefect_info_flow_runs[5m]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -617,7 +617,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (state_name) (rate(prefect_info_flow_runs_total[5m]))",
+          "expr": "sum by (state_name) (rate(prefect_info_flow_runs[5m]))",
           "instant": false,
           "legendFormat": "{{label_name}}",
           "range": true,
@@ -695,7 +695,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(prefect_info_flow_runs_total{flow_name=~\"$flow_name\"}[5m]))",
+          "expr": "sum(rate(prefect_info_flow_runs{flow_name=~\"$flow_name\"}[5m]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -914,7 +914,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "increase(prefect_info_flow_runs_total{state_name=~\"$flow_run_state_name\", flow_name=~\"$flow_name\"}[1h])",
+          "expr": "increase(prefect_info_flow_runs{state_name=~\"$flow_run_state_name\", flow_name=~\"$flow_name\"}[1h])",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -2124,7 +2124,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(prefect_info_flow_runs_total{flow_name=\"$flow_name\"},flow_run_name)",
+        "definition": "label_values(prefect_info_flow_runs{flow_name=\"$flow_name\"},flow_run_name)",
         "hide": 0,
         "includeAll": false,
         "label": "Flow Run Name",
@@ -2132,7 +2132,7 @@
         "name": "flow_run_name",
         "options": [],
         "query": {
-          "query": "label_values(prefect_info_flow_runs_total{flow_name=\"$flow_name\"},flow_run_name)",
+          "query": "label_values(prefect_info_flow_runs{flow_name=\"$flow_name\"},flow_run_name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -2147,7 +2147,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(prefect_info_flow_runs_total,state_name)",
+        "definition": "label_values(prefect_info_flow_runs,state_name)",
         "hide": 0,
         "includeAll": true,
         "label": "Flow Run State",
@@ -2155,7 +2155,7 @@
         "name": "flow_run_state_name",
         "options": [],
         "query": {
-          "query": "label_values(prefect_info_flow_runs_total,state_name)",
+          "query": "label_values(prefect_info_flow_runs,state_name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
