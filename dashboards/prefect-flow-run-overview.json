@@ -819,8 +819,8 @@
           },
           {
             "matcher": {
-              "id": "byName", 
-              "options": "deployment_name"
+              "id": "byName",
+              "options": "start_time"
             },
             "properties": [
               {
@@ -832,7 +832,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "flow_name"
+              "options": "end_time"
             },
             "properties": [
               {
@@ -944,6 +944,7 @@
               "namespace": true,
               "pod": true,
               "service": true,
+              "start_time": false,
               "state_id": true,
               "updated": true,
               "work_queue_name": true
@@ -956,6 +957,7 @@
               "created": 18,
               "deployment_id": 6,
               "deployment_name": 7,
+              "end_time": 20,
               "endpoint": 11,
               "flow_id": 4,
               "flow_name": 5,
@@ -966,15 +968,21 @@
               "namespace": 14,
               "pod": 15,
               "prefect_info_flow_runs": 23,
+              "run_count": 2,
               "service": 16,
+              "start_time": 19,
               "state_id": 21,
+              "total_run_time": 3,
               "work_queue_name": 17
             },
             "renameByName": {
               "is_schedule_active": "scheduled",
               "job": "",
               "prefect_info_flow_runs": "state",
-              "state_name": "state"
+              "run_count": "runs",
+              "start_time": "",
+              "state_name": "state",
+              "total_run_time": "spent time"
             }
           }
         }
