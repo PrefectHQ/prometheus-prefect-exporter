@@ -288,7 +288,7 @@ class PrefectMetrics(object):
         yield prefect_flow_runs_total_run_time
 
         # prefect_info_flow_runs metric
-        prefect_info_flow_runs = GaugeMetricFamily(
+        prefect_info_flow_runs = CounterMetricFamily(
             "prefect_info_flow_runs",
             "Prefect flow runs info",
             labels=[
@@ -330,8 +330,6 @@ class PrefectMetrics(object):
                     "null",
                 )
 
-            # set state
-            state = 0 if flow_run.get("state_name") != "Running" else 1
             prefect_info_flow_runs.add_metric(
                 [
                     str(deployment_name),
@@ -343,7 +341,7 @@ class PrefectMetrics(object):
                     str(flow_run.get("total_run_time", "null")),
                     str(flow_run.get("work_queue_name", "null")),
                 ],
-                state,
+                1,
             )
 
         yield prefect_info_flow_runs
