@@ -6,6 +6,17 @@ A Prometheus exporter for [Prefect](https://www.prefect.io/) metrics, written in
 
 By default `prometheus-prefect-exporter` will listen on port `8000`.
 
+While the [default scrape interval](https://prometheus.io/docs/instrumenting/writing_exporters/#scheduling)
+in Prometheus is 10 seconds, we recommend a longer interval:
+
+- High-frequency environments: 30s
+- Standard monitoring: 60s
+- Low-change environments: 120s
+
+The exporter performs several endpoints, and certain endpoints may use pagination and therefore require
+multiple API calls. A longer scrape interval ensures that the exporter does not overwhelm the Prefect API
+server and create unnecessary load.
+
 ### Installing released versions
 
 **Docker**
