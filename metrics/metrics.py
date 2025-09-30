@@ -1,4 +1,5 @@
 import time
+from collections import defaultdict
 from datetime import datetime, timezone
 
 import requests
@@ -288,20 +289,18 @@ class PrefectMetrics(object):
         yield prefect_flow_runs_total_run_time
 
         # prefect_info_flow_runs metric
-        prefect_info_flow_runs = GaugeMetricFamily(
+        prefect_info_flow_runs = CounterMetricFamily(
             "prefect_info_flow_runs",
             "Prefect flow runs info",
             labels=[
                 "deployment_name",
-                "end_time",
                 "flow_name",
-                "run_count",
-                "start_time",
                 "state_name",
-                "total_run_time",
                 "work_queue_name",
             ],
         )
+
+        state_counts = defaultdict(int)
 
         for flow_run in flow_runs:
             # get deployment name
@@ -330,21 +329,16 @@ class PrefectMetrics(object):
                     "null",
                 )
 
-            # set state
-            state = 0 if flow_run.get("state_name") != "Running" else 1
-            prefect_info_flow_runs.add_metric(
-                [
-                    str(deployment_name),
-                    str(flow_run.get("end_time", "null")),
-                    str(flow_name),
-                    str(flow_run.get("run_count", "null")),
-                    str(flow_run.get("start_time", "null")),
-                    str(flow_run.get("state_name", "null")),
-                    str(flow_run.get("total_run_time", "null")),
-                    str(flow_run.get("work_queue_name", "null")),
-                ],
-                state,
+            label_key = (
+                str(deployment_name),
+                str(flow_name),
+                str(flow_run.get("state_name", "null")),
+                str(flow_run.get("work_queue_name", "null")),
             )
+            state_counts[label_key] += 1
+
+        for label_key, count in state_counts.items():
+            prefect_info_flow_runs.add_metric(list(label_key), count)
 
         yield prefect_info_flow_runs
 
