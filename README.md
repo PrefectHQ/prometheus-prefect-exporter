@@ -6,6 +6,17 @@ A Prometheus exporter for [Prefect](https://www.prefect.io/) metrics, written in
 
 By default `prometheus-prefect-exporter` will listen on port `8000`.
 
+While the [default scrape interval](https://prometheus.io/docs/instrumenting/writing_exporters/#scheduling)
+in Prometheus is 10 seconds, we recommend a longer interval:
+
+- High-frequency environments: 30s
+- Standard monitoring: 60s
+- Low-change environments: 120s
+
+The exporter performs several endpoints, and certain endpoints may use pagination and therefore require
+multiple API calls. A longer scrape interval ensures that the exporter does not overwhelm the Prefect API
+server and create unnecessary load.
+
 ### Installing released versions
 
 **Docker**
@@ -108,19 +119,25 @@ You can modify environment variables to change the behavior of the exporter.
 | `PAGINATION_ENABLED` | Enable pagination for API requests. Can help reduce server load and avoid timeouts. Can be disabled on very small instances. | `True` |
 | `PAGINATION_LIMIT` | Number of results to retrieve per request when pagination is enabled. Consider lowering this value for large instances to make more, but smaller, requests. | `200` |
 
-
 ## Contributing
 
-Contributions to the Prometheus Prefect Exporter is always welcome! We welcome your help - whether it's adding new functionality, tweaking documentation, or anything in between. In order to successfully contribute, you'll need to fork this repository and commit changes to your local prometheus-prefect-exporter repo. You can then open a PR against this upstream repo that the team will review!
+Contributions to the Prometheus Prefect Exporter are always welcome. Fork this repository and commit changes to your local repository. You can then open a pull request against this upstream repository that the team will review.
+
+To get started, ensure you have the required dependencies installed:
+
+```shell
+mise install
+```
+
+Be sure to run `pre-commit install` before starting any development. [`pre-commit`](https://pre-commit.com/)
+will help catch simple issues before committing.
 
 ### Documentation
 
-Please make sure that your changes have been linted & the documentation has been updated.  The easiest way to accomplish this is by installing [`pre-commit`](https://pre-commit.com/).
+Please make sure that your changes have been linted and the documentation has been updated. The easiest way to accomplish this is by installing [`pre-commit`](https://pre-commit.com/).
 
-### Testing & validation
+### Opening a pull request
 
-Make sure that any new functionality is well tested!  You can do this by installing the exporter locally, see [above](https://github.com/PrefectHQ/prometheus-prefect-exporter#installing-development-versions) for how to do this.
+A helpful pull request explains _what_ changed and _why_ the change is important. Please take time to make your pull request descriptions as helpful as possible.
 
-### Opening a PR
-
-A helpful PR explains WHAT changed and WHY the change is important. Please take time to make your PR descriptions as helpful as possible. If you are opening a PR from a forked repository - please follow [these](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork) docs to allow `prometheus-prefect-exporter` maintainers to push commits to your local branch.
+For pull requests from a fork, please follow [the GitHub instructions](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork) to allow maintainers to push commits to your branch.
