@@ -1,7 +1,7 @@
 {
   "__inputs": [
     {
-      "name": "DS_PROMETHEUS",
+      "name": "${DS_PROMETHEUS}",
       "label": "Prometheus",
       "description": "",
       "type": "datasource",
@@ -2072,6 +2072,28 @@
   ],
   "templating": {
     "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "DS_PROMETHEUS",
+          "value": "DS_PROMETHEUS"
+        },
+        "hide": 2,
+        "includeAll": false,
+        "label": "",
+        "multi": false,
+        "name": "DS_PROMETHEUS",
+        "options": [
+          {
+            "selected": true,
+            "text": "DS_PROMETHEUS",
+            "value": "DS_PROMETHEUS"
+          }
+        ],
+        "query": "DS_PROMETHEUS",
+        "skipUrlSync": false,
+        "type": "constant"
+      },
       {
         "current": {},
         "datasource": {
