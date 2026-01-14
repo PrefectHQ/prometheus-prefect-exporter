@@ -1,6 +1,6 @@
 [tools]
-actionlint = "1.7.9"
-pre-commit = "4.5.0"
+actionlint = "1.7.10"
+pre-commit = "4.5.1"
 python = "3.14"
-ruff = "0.14.7"
+ruff = "0.14.10"
 shellcheck = "0.11.0"
