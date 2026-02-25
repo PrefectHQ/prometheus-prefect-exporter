@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import requests
 from prefect.client.schemas.objects import CsrfToken
-from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
+from prometheus_client.core import GaugeMetricFamily
 
 from metrics.deployments import PrefectDeployments
 from metrics.flow_runs import PrefectFlowRuns
@@ -59,8 +59,19 @@ class PrefectMetrics(object):
 
     def collect(self):
         """
-        Get and set Prefect work queues metrics.
+        Collect all Prefect metrics for a single Prometheus scrape.
 
+        On failure, logs the error and yields no metrics. The exporter stays
+        alive so subsequent scrapes can succeed.
+        """
+        try:
+            yield from self._collect_metrics()
+        except Exception:
+            self.logger.exception("Failed to collect metrics, skipping this scrape")
+
+    def _collect_metrics(self):
+        """
+        Internal method that performs the actual metric collection.
         """
         ##
         # PREFECT GET CSRF TOKEN IF ENABLED
@@ -245,7 +256,7 @@ class PrefectMetrics(object):
         yield prefect_flow_runs
 
         # prefect_flow_runs_total_run_time metric
-        prefect_flow_runs_total_run_time = CounterMetricFamily(
+        prefect_flow_runs_total_run_time = GaugeMetricFamily(
             "prefect_flow_runs_total_run_time",
             "Prefect flow-run total run time in seconds",
             labels=["flow_name"],
@@ -289,7 +300,7 @@ class PrefectMetrics(object):
         yield prefect_flow_runs_total_run_time
 
         # prefect_info_flow_runs metric
-        prefect_info_flow_runs = CounterMetricFamily(
+        prefect_info_flow_runs = GaugeMetricFamily(
             "prefect_info_flow_runs",
             "Prefect flow runs info",
             labels=[
@@ -440,21 +451,19 @@ class PrefectMetrics(object):
         """
         Pull CSRF Token from CSRF Endpoint.
 
+        Raises:
+            requests.exceptions.RequestException: If all retries are exhausted.
         """
-        csrf_token = requests.Response()
+        endpoint = f"{self.url}/csrf-token?client={self.client_id}"
 
         for retry in range(self.max_retries):
             try:
-                csrf_token = requests.get(
-                    f"{self.url}/csrf-token?client={self.client_id}",
-                    headers=self.headers,
-                )
-            except requests.exceptions.HTTPError as err:
+                resp = requests.get(endpoint, headers=self.headers)
+                resp.raise_for_status()
+                return CsrfToken.model_validate(resp.json())
+            except requests.exceptions.RequestException as err:
                 self.logger.error(err)
-                if retry >= self.max_retries - 1:
-                    time.sleep(1)
-                    raise SystemExit(err)
-            else:
-                break
-
-        return CsrfToken.model_validate(csrf_token.json())
+                if retry < self.max_retries - 1:
+                    time.sleep(2**retry)
+                else:
+                    raise
