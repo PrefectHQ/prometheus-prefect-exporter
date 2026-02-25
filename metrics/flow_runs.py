@@ -81,3 +81,23 @@ class PrefectFlowRuns(PrefectApiMetric):
         )
 
         return all_flow_runs
+
+    def get_failed_flow_runs_info(self) -> list:
+        """
+        Get all flow runs in a FAILED state within the FAILED_RUNS_OFFSET_MINUTES window.
+
+        Returns:
+            list: JSON response containing failed flow runs information.
+        """
+        failed_flow_runs = self._get_with_pagination(
+            base_data={
+                "flow_runs": {
+                    "operator": "and_",
+                    "state": {"type": {"any_": ["FAILED"]}},
+                    "start_time": {"after_": f"{self.after_data_fmt}"},
+                    "deployment_id": {"is_null_": False},
+                }
+            }
+        )
+
+        return failed_flow_runs
