@@ -24,6 +24,7 @@ class PrefectMetrics(object):
         headers,
         offset_minutes,
         failed_runs_offset_minutes,
+        failed_runs_limit,
         max_retries,
         csrf_enabled,
         client_id,
@@ -39,6 +40,7 @@ class PrefectMetrics(object):
             headers (dict): Headers to be included in HTTP requests.
             offset_minutes (int): Time offset in minutes.
             failed_runs_offset_minutes (int): Time offset in minutes for failed runs lookup window.
+            failed_runs_limit (int): Maximum number of last failed runs to report per deployment.
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
             csrf_enabled (bool): Whether CSRF is enabled.
@@ -50,6 +52,7 @@ class PrefectMetrics(object):
         self.headers = headers
         self.offset_minutes = offset_minutes
         self.failed_runs_offset_minutes = failed_runs_offset_minutes
+        self.failed_runs_limit = failed_runs_limit
         self.url = url
         self.max_retries = max_retries
         self.logger = logger
@@ -364,8 +367,8 @@ class PrefectMetrics(object):
         deployments_by_id = {d["id"]: d["name"] for d in deployments if d.get("id")}
         flows_by_id = {f["id"]: f["name"] for f in flows if f.get("id")}
 
-        # {(deployment_name, flow_name): {"last_run_id": str, "last_start_time": str}}
-        last_failed_runs = {}
+        # {(deployment_name, flow_name): [(start_time, run_id), ...]}
+        failed_runs_by_key = defaultdict(list)
         for flow_run in failed_flow_runs:
             deployment_name = deployments_by_id.get(flow_run.get("deployment_id"))
             if deployment_name is None:
@@ -375,14 +378,14 @@ class PrefectMetrics(object):
             key = (deployment_name, flow_name)
             run_id = str(flow_run.get("id", "null"))
             start_time = str(flow_run.get("start_time", ""))
+            failed_runs_by_key[key].append((start_time, run_id))
 
-            if key not in last_failed_runs or start_time > last_failed_runs[key]["last_start_time"]:
-                last_failed_runs[key] = {"last_run_id": run_id, "last_start_time": start_time}
-
-        for (deployment_name, flow_name), data in last_failed_runs.items():
-            prefect_deployment_last_failed_flow_run.add_metric(
-                [deployment_name, flow_name, data["last_run_id"]], 1
-            )
+        for (deployment_name, flow_name), runs in failed_runs_by_key.items():
+            runs.sort(reverse=True)
+            for _, run_id in runs[: self.failed_runs_limit]:
+                prefect_deployment_last_failed_flow_run.add_metric(
+                    [deployment_name, flow_name, run_id], 1
+                )
 
         yield prefect_deployment_last_failed_flow_run
 

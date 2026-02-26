@@ -21,6 +21,7 @@ def metrics():
     metrics_port = int(os.getenv("METRICS_PORT", "8000"))
     offset_minutes = int(os.getenv("OFFSET_MINUTES", "3"))
     failed_runs_offset_minutes = int(os.getenv("FAILED_RUNS_OFFSET_MINUTES", "10080"))  # 7 days
+    failed_runs_limit = int(os.getenv("FAILED_RUNS_LIMIT", "10"))
     url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
     api_auth_string = str(os.getenv("PREFECT_API_AUTH_STRING", ""))
@@ -65,6 +66,7 @@ def metrics():
         headers=headers,
         offset_minutes=offset_minutes,
         failed_runs_offset_minutes=failed_runs_offset_minutes,
+        failed_runs_limit=failed_runs_limit,
         max_retries=max_retries,
         client_id=csrf_client_id,
         csrf_enabled=str(os.getenv("PREFECT_CSRF_ENABLED", "False")) == "True",
