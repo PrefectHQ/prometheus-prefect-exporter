@@ -130,7 +130,7 @@ class PrefectMetrics(object):
             self.logger,
             self.enable_pagination,
             self.pagination_limit,
-        ).get_failed_flow_runs_info()
+        ).get_failed_flow_runs_info(limit=self.failed_runs_limit)
         work_pools = PrefectWorkPools(
             self.url,
             self.headers,
@@ -367,22 +367,10 @@ class PrefectMetrics(object):
         deployments_by_id = {d["id"]: d["name"] for d in deployments if d.get("id")}
         flows_by_id = {f["id"]: f["name"] for f in flows if f.get("id")}
 
-        # {(deployment_name, flow_name): [(start_time, run_id), ...]}
-        failed_runs_by_key = defaultdict(list)
-        for flow_run in failed_flow_runs:
-            deployment_name = deployments_by_id.get(flow_run.get("deployment_id"))
-            if deployment_name is None:
-                continue
-
-            flow_name = flows_by_id.get(flow_run.get("flow_id"), "null")
-            key = (deployment_name, flow_name)
-            run_id = str(flow_run.get("id", "null"))
-            start_time = str(flow_run.get("start_time", ""))
-            failed_runs_by_key[key].append((start_time, run_id))
-
-        for (deployment_name, flow_name), runs in failed_runs_by_key.items():
-            runs.sort(reverse=True)
-            for _, run_id in runs[: self.failed_runs_limit]:
+        for (deployment_id, flow_id), run_ids in failed_flow_runs.items():
+            deployment_name = deployments_by_id.get(deployment_id, "null")
+            flow_name = flows_by_id.get(flow_id, "null")
+            for run_id in run_ids:
                 prefect_deployment_last_failed_flow_run.add_metric(
                     [deployment_name, flow_name, run_id], 1
                 )
