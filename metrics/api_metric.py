@@ -44,7 +44,7 @@ class PrefectApiMetric:
         Fetch all items from the endpoint with pagination.
 
         Returns:
-            dict: JSON response containing all items from the endpoint.
+            list: All items from the endpoint, or an empty list on failure.
         """
         endpoint = f"{self.url}/{self.uri}/filter"
         enable_pagination = self.enable_pagination
@@ -54,7 +54,7 @@ class PrefectApiMetric:
 
         # Run the loop until the current page is empty
         while True:
-            resp = requests.Response()
+            resp = None
 
             for retry in range(self.max_retries):
                 data = {
@@ -66,13 +66,17 @@ class PrefectApiMetric:
                 try:
                     resp = requests.post(endpoint, headers=self.headers, json=data)
                     resp.raise_for_status()
-                except requests.exceptions.HTTPError as err:
-                    self.logger.error(err)
-                    if retry >= self.max_retries - 1:
-                        time.sleep(1)
-                        raise SystemExit(err)
-                else:
                     break
+                except requests.exceptions.RequestException as err:
+                    self.logger.error(err)
+                    if retry < self.max_retries - 1:
+                        time.sleep(2**retry)
+                    else:
+                        self.logger.error(
+                            "Max retries reached for %s, returning partial results",
+                            endpoint,
+                        )
+                        return all_items
 
             curr_page_items = resp.json()
 

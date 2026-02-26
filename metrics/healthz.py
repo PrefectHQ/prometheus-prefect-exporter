@@ -42,10 +42,10 @@ class PrefectHealthz:
                 self.logger.info(
                     f"Prefect health check: {resp.status_code} - {resp.reason}"
                 )
-            except requests.exceptions.HTTPError as err:
-                self.logger.error(err)
-                if retry >= self.max_retries - 1:
-                    time.sleep(1)
-                    raise SystemExit(err)
-            else:
                 break
+            except requests.exceptions.RequestException as err:
+                self.logger.error(err)
+                if retry < self.max_retries - 1:
+                    time.sleep(2**retry)
+                else:
+                    raise SystemExit(err)

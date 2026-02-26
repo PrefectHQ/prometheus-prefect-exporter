@@ -67,23 +67,24 @@ class PrefectWorkQueues(PrefectApiMetric):
             work_queue_id (uuid.UUID): The UUID of the work queue.
 
         Returns:
-            dict: JSON response containing work queue status information.
+            dict: JSON response containing work queue status information,
+                  or an empty dict on failure.
 
         """
         endpoint = f"{self.url}/{self.uri}/{work_queue_id}/status"
-        resp = requests.Response()
 
         for retry in range(self.max_retries):
             try:
                 resp = requests.get(endpoint, headers=self.headers)
                 resp.raise_for_status()
-
-            except requests.exceptions.HTTPError as err:
+                return resp.json()
+            except requests.exceptions.RequestException as err:
                 self.logger.error(err)
-                if retry >= self.max_retries - 1:
-                    time.sleep(1)
-                    raise SystemExit(err)
-            else:
-                break
-
-        return resp.json()
+                if retry < self.max_retries - 1:
+                    time.sleep(2**retry)
+                else:
+                    self.logger.error(
+                        "Max retries reached for %s, returning empty status",
+                        endpoint,
+                    )
+                    return {}
