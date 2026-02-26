@@ -20,7 +20,9 @@ def metrics():
     metrics_addr = os.getenv("METRICS_ADDR", "0.0.0.0")
     metrics_port = int(os.getenv("METRICS_PORT", "8000"))
     offset_minutes = int(os.getenv("OFFSET_MINUTES", "3"))
-    failed_runs_offset_minutes = int(os.getenv("FAILED_RUNS_OFFSET_MINUTES", "10080"))  # 7 days
+    failed_runs_offset_minutes = int(
+        os.getenv("FAILED_RUNS_OFFSET_MINUTES", "10080")
+    )  # 7 days
     failed_runs_limit = int(os.getenv("FAILED_RUNS_LIMIT", "10"))
     url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
@@ -36,7 +38,9 @@ def metrics():
     headers = {"accept": "application/json", "Content-Type": "application/json"}
 
     if api_auth_string:
-        api_auth_string_encoded = base64.b64encode(api_auth_string.encode("utf-8")).decode("utf-8")
+        api_auth_string_encoded = base64.b64encode(
+            api_auth_string.encode("utf-8")
+        ).decode("utf-8")
         headers["Authorization"] = f"Basic {api_auth_string_encoded}"
         logger.info("Added Basic Authorization header for PREFECT_API_AUTH_STRING")
 
