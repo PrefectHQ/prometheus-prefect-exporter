@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from metrics.api_metric import PrefectApiMetric
@@ -81,3 +82,33 @@ class PrefectFlowRuns(PrefectApiMetric):
         )
 
         return all_flow_runs
+
+    def get_failed_flow_runs_info(self, limit: int) -> dict:
+        """
+        Get the last N failed flow runs per (deployment_id, flow_id) pair within the window.
+
+        Args:
+            limit (int): Maximum number of recent failed runs to return per deployment/flow pair.
+
+        Returns:
+            dict: Mapping of (deployment_id, flow_id) -> [run_id, ...]
+        """
+        all_failed = self._get_with_pagination(
+            base_data={
+                "flow_runs": {
+                    "operator": "and_",
+                    "state": {"type": {"any_": ["FAILED"]}},
+                    "start_time": {"after_": f"{self.after_data_fmt}"},
+                    "deployment_id": {"is_null_": False},
+                },
+                "sort": "START_TIME_DESC",
+            }
+        )
+
+        result = defaultdict(list)
+        for flow_run in all_failed:
+            key = (flow_run.get("deployment_id"), flow_run.get("flow_id"))
+            if len(result[key]) < limit:
+                result[key].append(str(flow_run.get("id", "null")))
+
+        return result

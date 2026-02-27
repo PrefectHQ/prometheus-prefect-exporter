@@ -23,6 +23,8 @@ class PrefectMetrics(object):
         url,
         headers,
         offset_minutes,
+        failed_runs_offset_minutes,
+        failed_runs_limit,
         max_retries,
         csrf_enabled,
         client_id,
@@ -37,6 +39,8 @@ class PrefectMetrics(object):
             url (str): The URL of the Prefect instance.
             headers (dict): Headers to be included in HTTP requests.
             offset_minutes (int): Time offset in minutes.
+            failed_runs_offset_minutes (int): Time offset in minutes for failed runs lookup window.
+            failed_runs_limit (int): Maximum number of last failed runs to report per deployment.
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
             csrf_enabled (bool): Whether CSRF is enabled.
@@ -47,6 +51,8 @@ class PrefectMetrics(object):
 
         self.headers = headers
         self.offset_minutes = offset_minutes
+        self.failed_runs_offset_minutes = failed_runs_offset_minutes
+        self.failed_runs_limit = failed_runs_limit
         self.url = url
         self.max_retries = max_retries
         self.logger = logger
@@ -127,6 +133,18 @@ class PrefectMetrics(object):
             self.enable_pagination,
             self.pagination_limit,
         ).get_all_flow_runs_info()
+        if self.failed_runs_offset_minutes == 0:
+            failed_flow_runs = {}
+        else:
+            failed_flow_runs = PrefectFlowRuns(
+                self.url,
+                self.headers,
+                self.max_retries,
+                self.failed_runs_offset_minutes,
+                self.logger,
+                self.enable_pagination,
+                self.pagination_limit,
+            ).get_failed_flow_runs_info(limit=self.failed_runs_limit)
         work_pools = PrefectWorkPools(
             self.url,
             self.headers,
@@ -352,6 +370,26 @@ class PrefectMetrics(object):
             prefect_info_flow_runs.add_metric(list(label_key), count)
 
         yield prefect_info_flow_runs
+
+        # prefect_deployment_failed_flow_runs metric
+        prefect_deployment_failed_flow_runs = GaugeMetricFamily(
+            "prefect_deployment_failed_flow_runs",
+            "Last failed flow run ID per deployment within the FAILED_RUNS_OFFSET_MINUTES window",
+            labels=["deployment_name", "flow_name", "last_failed_run_id"],
+        )
+
+        deployments_by_id = {d["id"]: d["name"] for d in deployments if d.get("id")}
+        flows_by_id = {f["id"]: f["name"] for f in flows if f.get("id")}
+
+        for (deployment_id, flow_id), run_ids in failed_flow_runs.items():
+            deployment_name = deployments_by_id.get(deployment_id, "null")
+            flow_name = flows_by_id.get(flow_id, "null")
+            for run_id in run_ids:
+                prefect_deployment_failed_flow_runs.add_metric(
+                    [deployment_name, flow_name, run_id], 1
+                )
+
+        yield prefect_deployment_failed_flow_runs
 
         ##
         # PREFECT WORK POOLS METRICS
