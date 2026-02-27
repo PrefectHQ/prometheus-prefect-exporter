@@ -57,7 +57,7 @@ class PrefectFlowRuns(PrefectApiMetric):
             base_data={
                 "flow_runs": {
                     "operator": "and_",
-                    "start_time": {"after_": f"{self.after_data_fmt}"},
+                    "expected_start_time": {"after_": f"{self.after_data_fmt}"},
                 }
             }
         )
