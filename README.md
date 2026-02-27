@@ -118,7 +118,7 @@ You can modify environment variables to change the behavior of the exporter.
 | `PREFECT_CSRF_ENABLED` | Enable compatibilty with Prefect Servers using CSRF protection | `False` |
 | `PAGINATION_ENABLED` | Enable pagination for API requests. Can help reduce server load and avoid timeouts. Can be disabled on very small instances. | `True` |
 | `PAGINATION_LIMIT` | Number of results to retrieve per request when pagination is enabled. Consider lowering this value for large instances to make more, but smaller, requests. | `200` |
-| `FAILED_RUNS_OFFSET_MINUTES` | Time window in minutes for the `prefect_deployment_failed_flow_runs` metric. Failed runs older than this window are ignored. | `10080` (7 days) |
+| `FAILED_RUNS_OFFSET_MINUTES` | Time window in minutes for the `prefect_deployment_failed_flow_runs` metric. Failed runs older than this window are ignored. Set to `0` to disable the metric entirely. | `10080` (7 days) |
 | `FAILED_RUNS_LIMIT` | Maximum number of recent failed runs to expose per deployment in `prefect_deployment_failed_flow_runs`. | `10` |
 
 ## Contributing

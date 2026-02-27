@@ -122,15 +122,18 @@ class PrefectMetrics(object):
             self.enable_pagination,
             self.pagination_limit,
         ).get_all_flow_runs_info()
-        failed_flow_runs = PrefectFlowRuns(
-            self.url,
-            self.headers,
-            self.max_retries,
-            self.failed_runs_offset_minutes,
-            self.logger,
-            self.enable_pagination,
-            self.pagination_limit,
-        ).get_failed_flow_runs_info(limit=self.failed_runs_limit)
+        if self.failed_runs_offset_minutes == 0:
+            failed_flow_runs = {}
+        else:
+            failed_flow_runs = PrefectFlowRuns(
+                self.url,
+                self.headers,
+                self.max_retries,
+                self.failed_runs_offset_minutes,
+                self.logger,
+                self.enable_pagination,
+                self.pagination_limit,
+            ).get_failed_flow_runs_info(limit=self.failed_runs_limit)
         work_pools = PrefectWorkPools(
             self.url,
             self.headers,
