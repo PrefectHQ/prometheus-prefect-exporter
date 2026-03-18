@@ -91,13 +91,13 @@ class PrefectFlowRuns(PrefectApiMetric):
             limit (int): Maximum number of recent failed runs to return per deployment/flow pair.
 
         Returns:
-            dict: Mapping of (deployment_id, flow_id) -> [run_id, ...]
+            dict: Mapping of (deployment_id, flow_id, state_name) -> [run_id, ...]
         """
         all_failed = self._get_with_pagination(
             base_data={
                 "flow_runs": {
                     "operator": "and_",
-                    "state": {"type": {"any_": ["FAILED"]}},
+                    "state": {"type": {"any_": ["FAILED", "CRASHED"]}},
                     "start_time": {"after_": f"{self.after_data_fmt}"},
                     "deployment_id": {"is_null_": False},
                 },
@@ -107,7 +107,11 @@ class PrefectFlowRuns(PrefectApiMetric):
 
         result = defaultdict(list)
         for flow_run in all_failed:
-            key = (flow_run.get("deployment_id"), flow_run.get("flow_id"))
+            key = (
+                flow_run.get("deployment_id"),
+                flow_run.get("flow_id"),
+                flow_run.get("state_name"),
+            )
             if len(result[key]) < limit:
                 result[key].append(str(flow_run.get("id", "null")))
 
