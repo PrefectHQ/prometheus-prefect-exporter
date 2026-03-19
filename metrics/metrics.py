@@ -374,19 +374,19 @@ class PrefectMetrics(object):
         # prefect_deployment_failed_flow_runs metric
         prefect_deployment_failed_flow_runs = GaugeMetricFamily(
             "prefect_deployment_failed_flow_runs",
-            "Last failed flow run ID per deployment within the FAILED_RUNS_OFFSET_MINUTES window",
-            labels=["deployment_name", "flow_name", "last_failed_run_id"],
+            "Last failed or crashed flow run ID per deployment within the FAILED_RUNS_OFFSET_MINUTES window",
+            labels=["deployment_name", "flow_name", "last_failed_run_id", "state_name"],
         )
 
         deployments_by_id = {d["id"]: d["name"] for d in deployments if d.get("id")}
         flows_by_id = {f["id"]: f["name"] for f in flows if f.get("id")}
 
-        for (deployment_id, flow_id), run_ids in failed_flow_runs.items():
+        for (deployment_id, flow_id, state_name), run_ids in failed_flow_runs.items():
             deployment_name = deployments_by_id.get(deployment_id, "null")
             flow_name = flows_by_id.get(flow_id, "null")
             for run_id in run_ids:
                 prefect_deployment_failed_flow_runs.add_metric(
-                    [deployment_name, flow_name, run_id], 1
+                    [deployment_name, flow_name, run_id, state_name], 1
                 )
 
         yield prefect_deployment_failed_flow_runs
