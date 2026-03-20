@@ -451,8 +451,22 @@ class PrefectMetrics(object):
                 "work_pool_name",
                 "status",
                 "healthy",
-                "late_runs_count",
-                "last_polled",
+                "health_check_policy_maximum_late_runs",
+                "health_check_policy_maximum_seconds_since_last_polled",
+            ],
+        )
+
+        prefect_work_queues_late_runs_count = GaugeMetricFamily(
+            "prefect_work_queues_late_runs_count",
+            "Prefect work queues late runs count",
+            labels=[
+                "is_paused",
+                "work_queue_name",
+                "priority",
+                "type",
+                "work_pool_name",
+                "status",
+                "healthy",
                 "health_check_policy_maximum_late_runs",
                 "health_check_policy_maximum_seconds_since_last_polled",
             ],
@@ -471,8 +485,6 @@ class PrefectMetrics(object):
                     str(work_queue.get("work_pool_name", "null")),
                     str(work_queue.get("status", "null")),
                     str(status_info.get("healthy", "null")),
-                    str(status_info.get("late_runs_count", "null")),
-                    str(status_info.get("last_polled", "null")),
                     str(health_check_policy.get("maximum_late_runs", "null")),
                     str(
                         health_check_policy.get(
@@ -483,7 +495,28 @@ class PrefectMetrics(object):
                 state,
             )
 
+            prefect_work_queues_late_runs_count.add_metric(
+                [
+                    str(work_queue.get("is_paused", "null")),
+                    str(work_queue.get("name", "null")),
+                    str(work_queue.get("priority", "null")),
+                    str(work_queue.get("type", "null")),
+                    str(work_queue.get("work_pool_name", "null")),
+                    str(work_queue.get("status", "null")),
+                    str(status_info.get("healthy", "null")),
+                    str(health_check_policy.get("maximum_late_runs", "null")),
+                    str(
+                        health_check_policy.get(
+                            "maximum_seconds_since_last_polled", "null"
+                        )
+                    ),
+                ],
+                status_info.get("late_runs_count", "null"),
+            )
+
         yield prefect_info_work_queues
+
+        yield prefect_work_queues_late_runs_count
 
     def get_csrf_token(self) -> CsrfToken:
         """
