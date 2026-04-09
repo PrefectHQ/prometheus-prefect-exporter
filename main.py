@@ -58,11 +58,17 @@ def metrics():
     #
     enable_pagination = str(os.getenv("PAGINATION_ENABLED", "True")) == "True"
     pagination_limit = int(os.getenv("PAGINATION_LIMIT", 200))
+    enable_flow_run_name_label = (
+        str(os.getenv("ENABLE_FLOW_RUN_NAME_LABEL", "False")) == "True"
+    )
     if enable_pagination:
         logger.info("Pagination is enabled")
         logger.info(f"Pagination limit is {pagination_limit}")
     else:
         logger.info("Pagination is disabled")
+
+    if enable_flow_run_name_label:
+        logger.info("Flow run name label is enabled on prefect_info_flow_runs")
 
     # Create an instance of the PrefectMetrics class
     metrics = PrefectMetrics(
@@ -78,6 +84,7 @@ def metrics():
         # Enable pagination if not specified to avoid breaking existing deployments
         enable_pagination=enable_pagination,
         pagination_limit=pagination_limit,
+        enable_flow_run_name_label=enable_flow_run_name_label,
     )
 
     # Register the metrics with Prometheus
