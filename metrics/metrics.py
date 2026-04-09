@@ -313,6 +313,7 @@ class PrefectMetrics(object):
             prefect_flow_runs_total_run_time.add_metric(
                 [
                     str(flow_name),
+                    str(flow_run.get("name", "null")),
                 ],
                 flow_run.get("total_run_time", "null"),
             )
