@@ -31,6 +31,7 @@ class PrefectMetrics(object):
         logger,
         enable_pagination,
         pagination_limit,
+        enable_flow_run_name_label=False,
     ) -> None:
         """
         Initialize the PrefectMetrics instance.
@@ -47,6 +48,7 @@ class PrefectMetrics(object):
             client_id (str): The client ID for CSRF.
             enable_pagination (bool): Whether pagination is enabled.
             pagination_limit (int): The pagination limit.
+            enable_flow_run_name_label (bool): Whether to include flow_run_name in prefect_info_flow_runs.
         """
 
         self.headers = headers
@@ -60,6 +62,7 @@ class PrefectMetrics(object):
         self.csrf_enabled = csrf_enabled
         self.enable_pagination = enable_pagination
         self.pagination_limit = pagination_limit
+        self.enable_flow_run_name_label = enable_flow_run_name_label
         self.csrf_token = None
         self.csrf_token_expiration = None
 
@@ -318,15 +321,19 @@ class PrefectMetrics(object):
         yield prefect_flow_runs_total_run_time
 
         # prefect_info_flow_runs metric
+        info_flow_runs_labels = [
+            "deployment_name",
+            "flow_name",
+            "state_name",
+            "work_queue_name",
+        ]
+        if self.enable_flow_run_name_label:
+            info_flow_runs_labels.append("flow_run_name")
+
         prefect_info_flow_runs = GaugeMetricFamily(
             "prefect_info_flow_runs",
             "Prefect flow runs info",
-            labels=[
-                "deployment_name",
-                "flow_name",
-                "state_name",
-                "work_queue_name",
-            ],
+            labels=info_flow_runs_labels,
         )
 
         state_counts = defaultdict(int)
@@ -364,6 +371,8 @@ class PrefectMetrics(object):
                 str(flow_run.get("state_name", "null")),
                 str(flow_run.get("work_queue_name", "null")),
             )
+            if self.enable_flow_run_name_label:
+                label_key += (str(flow_run.get("name", "null")),)
             state_counts[label_key] += 1
 
         for label_key, count in state_counts.items():
