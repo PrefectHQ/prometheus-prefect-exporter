@@ -83,6 +83,25 @@ class PrefectFlowRuns(PrefectApiMetric):
 
         return all_flow_runs
 
+    def get_ongoing_flow_runs_info(self) -> list:
+        """
+        Get information about ongoing flow runs
+
+        Returns:
+            dict: JSON response containing ongoing flow runs information.
+        """
+        ongoing_flow_runs = self._get_with_pagination(
+            base_data={
+                "flow_runs": {
+                    "operator": "and_",
+                    "end_time": {"is_null_": True},
+                    "state": {"type": {"any_": ["RUNNING", "PENDING", "SCHEDULED"]}},
+                }
+            }
+        )
+
+        return ongoing_flow_runs
+
     def get_failed_flow_runs_info(self, limit: int) -> dict:
         """
         Get the last N failed flow runs per (deployment_id, flow_id) pair within the window.
