@@ -136,6 +136,15 @@ class PrefectMetrics(object):
             self.enable_pagination,
             self.pagination_limit,
         ).get_all_flow_runs_info()
+        running_flow_runs = PrefectFlowRuns(
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.offset_minutes,
+            self.logger,
+            self.enable_pagination,
+            self.pagination_limit,
+        ).get_running_flow_runs_info()
         if self.failed_runs_offset_minutes == 0:
             failed_flow_runs = {}
         else:
@@ -318,6 +327,39 @@ class PrefectMetrics(object):
             )
 
         yield prefect_flow_runs_total_run_time
+
+        prefect_flow_runs_running_run_time = GaugeMetricFamily(
+            "prefect_flow_runs_running_run_time",
+            "Prefect flow runs running run time in seconds",
+            labels=[
+                "flow_name",
+                "flow_run_id",
+            ],
+        )
+
+        for flow_run in running_flow_runs:
+            # get flow name
+            if flow_run.get("flow_id") is None:
+                flow_name = "null"
+            else:
+                flow_name = next(
+                    (
+                        flow.get("name")
+                        for flow in flows
+                        if flow.get("id") == flow_run.get("flow_id")
+                    ),
+                    "null",
+                )
+
+            prefect_flow_runs_running_run_time.add_metric(
+                [
+                    str(flow_name),
+                    str(flow_run.get("id")),
+                ],
+                flow_run.get("estimated_run_time"),
+            )
+
+        yield prefect_flow_runs_running_run_time
 
         # prefect_info_flow_runs metric
         info_flow_runs_labels = [
