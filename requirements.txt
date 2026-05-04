@@ -1,4 +1,4 @@
 requests==2.33.1
-prometheus_client==0.24.1
+prometheus_client==0.25.0
 pendulum==3.2.0
-prefect==3.6.24
+prefect==3.6.29
