@@ -70,11 +70,11 @@ class PrefectApiMetric:
                     resp.raise_for_status()
                     break
                 except requests.exceptions.RequestException as err:
-                    self.logger.error(err)
                     signal = detect_retry_after(err.response)
                     if signal is not None:
                         log_retry_after(self.logger, endpoint, signal)
                         return all_items
+                    self.logger.error(err)
                     if retry < self.max_retries - 1:
                         time.sleep(2**retry)
                     else:

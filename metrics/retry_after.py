@@ -1,11 +1,4 @@
-"""Helpers for honoring the HTTP Retry-After header.
-
-Prefect Cloud's maintenance mode returns 503 + ``Retry-After`` (typically
-1200s) along with ``Prefect-Maintenance: true``. The same header is also
-standard for 429 Too Many Requests. When we see this, we abort the current
-scrape rather than blocking the Prometheus scrape thread for minutes at a
-time. Prometheus will scrape again on its own cadence.
-"""
+"""Helpers for honoring the HTTP Retry-After header on 429/503 responses."""
 
 from __future__ import annotations
 
@@ -17,13 +10,13 @@ from typing import Optional
 import requests
 
 
+RETRY_AFTER_HEADER = "Retry-After"
+PREFECT_MAINTENANCE_HEADER = "Prefect-Maintenance"
 RETRY_AFTER_STATUSES = frozenset({429, 503})
 
 
 @dataclass(frozen=True)
 class RetryAfterSignal:
-    """A parsed Retry-After signal from a server response."""
-
     seconds: float
     status_code: int
     maintenance: bool
@@ -73,11 +66,11 @@ def detect_retry_after(
     if resp.status_code not in RETRY_AFTER_STATUSES:
         return None
 
-    seconds = parse_retry_after(resp.headers.get("Retry-After"))
+    seconds = parse_retry_after(resp.headers.get(RETRY_AFTER_HEADER))
     if seconds is None:
         return None
 
-    maintenance = resp.headers.get("Prefect-Maintenance", "").lower() == "true"
+    maintenance = resp.headers.get(PREFECT_MAINTENANCE_HEADER, "").lower() == "true"
     return RetryAfterSignal(
         seconds=seconds,
         status_code=resp.status_code,
@@ -86,7 +79,6 @@ def detect_retry_after(
 
 
 def log_retry_after(logger, endpoint: str, signal: RetryAfterSignal) -> None:
-    """Emit a consistent warning for a Retry-After signal."""
     kind = "maintenance mode" if signal.maintenance else "server-requested backoff"
     logger.warning(
         "Aborting scrape of %s: %s (status=%s, Retry-After=%.0fs)",
