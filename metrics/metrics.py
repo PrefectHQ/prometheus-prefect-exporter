@@ -9,6 +9,7 @@ from prometheus_client.core import GaugeMetricFamily
 from metrics.deployments import PrefectDeployments
 from metrics.flow_runs import PrefectFlowRuns
 from metrics.flows import PrefectFlows
+from metrics.retry_after import detect_retry_after, log_retry_after
 from metrics.work_pools import PrefectWorkPools
 from metrics.work_queues import PrefectWorkQueues
 
@@ -541,6 +542,10 @@ class PrefectMetrics(object):
                 resp.raise_for_status()
                 return CsrfToken.model_validate(resp.json())
             except requests.exceptions.RequestException as err:
+                signal = detect_retry_after(err.response)
+                if signal is not None:
+                    log_retry_after(self.logger, endpoint, signal)
+                    raise
                 self.logger.error(err)
                 if retry < self.max_retries - 1:
                     time.sleep(2**retry)
