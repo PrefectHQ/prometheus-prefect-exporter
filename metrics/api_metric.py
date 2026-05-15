@@ -3,6 +3,8 @@ from typing import Optional
 
 import requests
 
+from metrics.retry_after import detect_retry_after, log_retry_after
+
 
 class PrefectApiMetric:
     """
@@ -69,6 +71,10 @@ class PrefectApiMetric:
                     break
                 except requests.exceptions.RequestException as err:
                     self.logger.error(err)
+                    signal = detect_retry_after(err.response)
+                    if signal is not None:
+                        log_retry_after(self.logger, endpoint, signal)
+                        return all_items
                     if retry < self.max_retries - 1:
                         time.sleep(2**retry)
                     else:

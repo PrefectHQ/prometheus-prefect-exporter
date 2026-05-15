@@ -1,6 +1,8 @@
 import requests
 import time
 
+from metrics.retry_after import detect_retry_after, log_retry_after
+
 
 class PrefectHealthz:
     """
@@ -45,6 +47,10 @@ class PrefectHealthz:
                 break
             except requests.exceptions.RequestException as err:
                 self.logger.error(err)
+                signal = detect_retry_after(err.response)
+                if signal is not None:
+                    log_retry_after(self.logger, endpoint, signal)
+                    raise SystemExit(err)
                 if retry < self.max_retries - 1:
                     time.sleep(2**retry)
                 else:
