@@ -68,7 +68,9 @@ def metrics():
         logger.info("Pagination is disabled")
 
     if enable_flow_run_name_label:
-        logger.info("Flow run name label is enabled on prefect_info_flow_runs")
+        logger.info(
+            "Flow run name label is enabled on prefect_info_flow_runs and prefect_flow_runs_ongoing_run_time"
+        )
 
     # Create an instance of the PrefectMetrics class
     metrics = PrefectMetrics(

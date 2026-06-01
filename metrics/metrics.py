@@ -49,7 +49,7 @@ class PrefectMetrics(object):
             client_id (str): The client ID for CSRF.
             enable_pagination (bool): Whether pagination is enabled.
             pagination_limit (int): The pagination limit.
-            enable_flow_run_name_label (bool): Whether to include flow_run_name in prefect_info_flow_runs.
+            enable_flow_run_name_label (bool): Whether to include flow_run_name in prefect_info_flow_runs and prefect_flow_runs_ongoing_run_time.
         """
 
         self.headers = headers
@@ -137,6 +137,15 @@ class PrefectMetrics(object):
             self.enable_pagination,
             self.pagination_limit,
         ).get_all_flow_runs_info()
+        ongoing_flow_runs = PrefectFlowRuns(
+            self.url,
+            self.headers,
+            self.max_retries,
+            self.offset_minutes,
+            self.logger,
+            self.enable_pagination,
+            self.pagination_limit,
+        ).get_ongoing_flow_runs_info()
         if self.failed_runs_offset_minutes == 0:
             failed_flow_runs = {}
         else:
@@ -319,6 +328,71 @@ class PrefectMetrics(object):
             )
 
         yield prefect_flow_runs_total_run_time
+
+        prefect_flow_run_ongoing_labels = [
+            "deployment_name",
+            "flow_name",
+            "state_name",
+        ]
+
+        if self.enable_flow_run_name_label:
+            prefect_flow_run_ongoing_labels.append("flow_run_name")
+
+        prefect_flow_runs_ongoing_run_time = GaugeMetricFamily(
+            "prefect_flow_runs_ongoing_run_time",
+            "Prefect flow runs ongoing run time in seconds",
+            labels=prefect_flow_run_ongoing_labels,
+        )
+
+        current_time = datetime.now(timezone.utc)
+
+        for flow_run in ongoing_flow_runs:
+            if flow_run.get("deployment_id") is None:
+                deployment_name = "null"
+            else:
+                deployment_name = next(
+                    (
+                        deployment.get("name")
+                        for deployment in deployments
+                        if flow_run.get("deployment_id") == deployment.get("id")
+                    ),
+                    "null",
+                )
+
+            # get flow name
+            if flow_run.get("flow_id") is None:
+                flow_name = "null"
+            else:
+                flow_name = next(
+                    (
+                        flow.get("name")
+                        for flow in flows
+                        if flow.get("id") == flow_run.get("flow_id")
+                    ),
+                    "null",
+                )
+
+            label_keys = [
+                str(deployment_name),
+                str(flow_name),
+                str(flow_run.get("state_name")),
+            ]
+            if self.enable_flow_run_name_label:
+                label_keys.append(str(flow_run.get("name", "null")))
+
+            start_time = (
+                datetime.fromisoformat(flow_run.get("start_time"))
+                if flow_run.get("start_time")
+                else current_time
+            )
+            run_time = current_time - start_time
+
+            prefect_flow_runs_ongoing_run_time.add_metric(
+                label_keys,
+                run_time.total_seconds(),
+            )
+
+        yield prefect_flow_runs_ongoing_run_time
 
         # prefect_info_flow_runs metric
         info_flow_runs_labels = [
