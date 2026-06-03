@@ -175,6 +175,10 @@ class PrefectMetrics(object):
             self.pagination_limit,
         ).get_work_queues_info()
 
+        # O(1) id -> name lookups reused across the flow-run metric loops below.
+        deployments_by_id = {d["id"]: d["name"] for d in deployments if d.get("id")}
+        flows_by_id = {f["id"]: f["name"] for f in flows if f.get("id")}
+
         ##
         # PREFECT DEPLOYMENTS METRICS
         #
@@ -329,10 +333,14 @@ class PrefectMetrics(object):
 
         yield prefect_flow_runs_total_run_time
 
+        # flow_run_id keeps each ongoing run a distinct timeseries. Without it,
+        # multiple runs of the same flow/deployment/state collapse to identical
+        # label tuples and Prometheus rejects the scrape as duplicate samples.
         prefect_flow_run_ongoing_labels = [
             "deployment_name",
             "flow_name",
             "state_name",
+            "flow_run_id",
         ]
 
         if self.enable_flow_run_name_label:
@@ -347,49 +355,50 @@ class PrefectMetrics(object):
         current_time = datetime.now(timezone.utc)
 
         for flow_run in ongoing_flow_runs:
-            if flow_run.get("deployment_id") is None:
-                deployment_name = "null"
-            else:
-                deployment_name = next(
-                    (
-                        deployment.get("name")
-                        for deployment in deployments
-                        if flow_run.get("deployment_id") == deployment.get("id")
-                    ),
-                    "null",
-                )
+            deployment_name = deployments_by_id.get(
+                flow_run.get("deployment_id"), "null"
+            )
+            flow_name = flows_by_id.get(flow_run.get("flow_id"), "null")
 
-            # get flow name
-            if flow_run.get("flow_id") is None:
-                flow_name = "null"
-            else:
-                flow_name = next(
-                    (
-                        flow.get("name")
-                        for flow in flows
-                        if flow.get("id") == flow_run.get("flow_id")
-                    ),
-                    "null",
+            # A run with no start_time (e.g. PENDING/SCHEDULED) has no meaningful
+            # ongoing duration; skip it rather than report a misleading 0.
+            raw_start_time = flow_run.get("start_time")
+            if not raw_start_time:
+                continue
+
+            # Guard the parse: a malformed timestamp must never propagate and
+            # blank the entire scrape via collect()'s broad except.
+            try:
+                start_time = datetime.fromisoformat(raw_start_time)
+            except (TypeError, ValueError):
+                self.logger.warning(
+                    "Skipping ongoing flow run %s: unparseable start_time %r",
+                    flow_run.get("id"),
+                    raw_start_time,
                 )
+                continue
+
+            # The API may omit the offset, yielding a naive datetime that cannot
+            # be subtracted from the tz-aware current_time. Assume UTC.
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=timezone.utc)
+
+            # Clamp: future-dated runs (SCHEDULED) would otherwise emit a
+            # negative duration for a "run time in seconds" gauge.
+            run_time = max(0.0, (current_time - start_time).total_seconds())
 
             label_keys = [
                 str(deployment_name),
                 str(flow_name),
-                str(flow_run.get("state_name")),
+                str(flow_run.get("state_name", "null")),
+                str(flow_run.get("id", "null")),
             ]
             if self.enable_flow_run_name_label:
                 label_keys.append(str(flow_run.get("name", "null")))
 
-            start_time = (
-                datetime.fromisoformat(flow_run.get("start_time"))
-                if flow_run.get("start_time")
-                else current_time
-            )
-            run_time = current_time - start_time
-
             prefect_flow_runs_ongoing_run_time.add_metric(
                 label_keys,
-                run_time.total_seconds(),
+                run_time,
             )
 
         yield prefect_flow_runs_ongoing_run_time
@@ -460,9 +469,6 @@ class PrefectMetrics(object):
             "Last failed or crashed flow run ID per deployment within the FAILED_RUNS_OFFSET_MINUTES window",
             labels=["deployment_name", "flow_name", "last_failed_run_id", "state_name"],
         )
-
-        deployments_by_id = {d["id"]: d["name"] for d in deployments if d.get("id")}
-        flows_by_id = {f["id"]: f["name"] for f in flows if f.get("id")}
 
         for (deployment_id, flow_id, state_name), run_ids in failed_flow_runs.items():
             deployment_name = deployments_by_id.get(deployment_id, "null")
