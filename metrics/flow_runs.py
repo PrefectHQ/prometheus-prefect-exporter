@@ -9,6 +9,23 @@ class PrefectFlowRuns(PrefectApiMetric):
     PrefectFlowRuns class for interacting with Prefect's flow runs endpoints.
     """
 
+    # All terminal/non-terminal state types Prefect can report. get_flow_runs_info()
+    # queries each group separately so a high-volume state (e.g. COMPLETED) cannot crowd
+    # rarer states (FAILED/CRASHED) out of a limited/paginated result window.
+    # See https://github.com/PrefectHQ/prometheus-prefect-exporter/issues/113 and the
+    # upstream diagnosis in https://github.com/PrefectHQ/prefect/issues/20341.
+    STATE_TYPES = [
+        "SCHEDULED",
+        "PENDING",
+        "RUNNING",
+        "PAUSED",
+        "CANCELLING",
+        "CANCELLED",
+        "COMPLETED",
+        "FAILED",
+        "CRASHED",
+    ]
+
     def __init__(
         self,
         url,
@@ -50,20 +67,33 @@ class PrefectFlowRuns(PrefectApiMetric):
         """
         Get information about flow runs within a specified time range.
 
+        Queries each state type separately and merges the results. A single
+        unfiltered query is sorted by start_time and capped by the page/pagination
+        limit, so the most numerous state (typically COMPLETED) can push rarer
+        FAILED/CRASHED runs out of the returned window, under-counting them in
+        ``prefect_info_flow_runs``. Splitting per state bounds each query by that
+        state's own volume, so no state is silently truncated.
+
         Returns:
-            dict: JSON response containing flow runs information.
+            list: Flow runs across all state types, de-duplicated by run id.
 
         """
-        flow_runs = self._get_with_pagination(
-            base_data={
-                "flow_runs": {
-                    "operator": "and_",
-                    "start_time": {"after_": f"{self.after_data_fmt}"},
+        flow_runs_by_id = {}
+        for state_type in self.STATE_TYPES:
+            for flow_run in self._get_with_pagination(
+                base_data={
+                    "flow_runs": {
+                        "operator": "and_",
+                        "start_time": {"after_": f"{self.after_data_fmt}"},
+                        "state": {"type": {"any_": [state_type]}},
+                    }
                 }
-            }
-        )
+            ):
+                # A run can only hold one state, but de-dupe by id defensively so a
+                # run observed transitioning between queries is never double-counted.
+                flow_runs_by_id[flow_run.get("id")] = flow_run
 
-        return flow_runs
+        return list(flow_runs_by_id.values())
 
     def get_all_flow_runs_info(self) -> list:
         """
