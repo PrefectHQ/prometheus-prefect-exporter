@@ -290,11 +290,18 @@ class PrefectMetrics(object):
         prefect_flow_runs.add_metric([], len(all_flow_runs))
         yield prefect_flow_runs
 
-        # prefect_flow_runs_total_run_time metric
+        # flow_run_id keeps each finished run a distinct timeseries. A flow that
+        # ran more than once inside the offset window would otherwise emit the
+        # same label tuple with different values, which Prometheus drops.
+        prefect_flow_run_total_labels = ["flow_name", "flow_run_id"]
+
+        if self.enable_flow_run_name_label:
+            prefect_flow_run_total_labels.append("flow_run_name")
+
         prefect_flow_runs_total_run_time = GaugeMetricFamily(
             "prefect_flow_runs_total_run_time",
             "Prefect flow-run total run time in seconds",
-            labels=["flow_name"],
+            labels=prefect_flow_run_total_labels,
         )
 
         for flow_run in all_flow_runs:
@@ -324,10 +331,12 @@ class PrefectMetrics(object):
                     "null",
                 )
 
+            label_keys = [str(flow_name), str(flow_run.get("id", "null"))]
+            if self.enable_flow_run_name_label:
+                label_keys.append(str(flow_run.get("name", "null")))
+
             prefect_flow_runs_total_run_time.add_metric(
-                [
-                    str(flow_name),
-                ],
+                label_keys,
                 flow_run.get("total_run_time", "null"),
             )
 
