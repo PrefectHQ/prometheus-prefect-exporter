@@ -294,7 +294,7 @@ class PrefectMetrics(object):
         prefect_flow_runs_total_run_time = GaugeMetricFamily(
             "prefect_flow_runs_total_run_time",
             "Prefect flow-run total run time in seconds",
-            labels=["flow_name"],
+            labels=["flow_name", "deployment_name"],
         )
 
         for flow_run in all_flow_runs:
@@ -327,6 +327,7 @@ class PrefectMetrics(object):
             prefect_flow_runs_total_run_time.add_metric(
                 [
                     str(flow_name),
+                    str(deployment_name),
                 ],
                 flow_run.get("total_run_time", "null"),
             )
