@@ -9,7 +9,7 @@ class PrefectHealthz:
     PrefectHealthz class for interacting with Prefect's health endpoints.
     """
 
-    def __init__(self, url, headers, max_retries, logger, uri=None) -> None:
+    def __init__(self, url, headers, max_retries, logger, timeout, uri=None) -> None:
         """
         Initialize the PrefectHealthz instance.
 
@@ -19,6 +19,7 @@ class PrefectHealthz:
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
             uri (str, optional): The URI path for health endpoint. Default is None.
+            timeout (float): Timeout in seconds for each HTTP request.
 
         """
         self.headers = headers
@@ -26,6 +27,7 @@ class PrefectHealthz:
         self.url = url
         self.max_retries = max_retries
         self.logger = logger
+        self.timeout = timeout
 
     def get_health_check(self) -> None:
         """
@@ -39,7 +41,9 @@ class PrefectHealthz:
 
         for retry in range(self.max_retries):
             try:
-                resp = requests.get(endpoint, headers=self.headers)
+                resp = requests.get(
+                    endpoint, headers=self.headers, timeout=self.timeout
+                )
                 resp.raise_for_status()
                 self.logger.info(
                     f"Prefect health check: {resp.status_code} - {resp.reason}"

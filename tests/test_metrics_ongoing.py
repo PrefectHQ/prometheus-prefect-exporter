@@ -31,6 +31,7 @@ def _make(enable_flow_run_name_label=False):
         failed_runs_offset_minutes=0,
         failed_runs_limit=10,
         max_retries=3,
+        timeout=10,
         client_id="test-client-id",
         csrf_enabled=False,
         logger=logging.getLogger("test"),

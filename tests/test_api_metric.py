@@ -11,6 +11,7 @@ def _make(uri="deployments", **overrides):
         url="http://prefect.test/api",
         headers={"accept": "application/json"},
         max_retries=3,
+        timeout=10,
         logger=logging.getLogger("test"),
         enable_pagination=True,
         pagination_limit=2,
