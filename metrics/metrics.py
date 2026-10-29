@@ -106,7 +106,7 @@ class PrefectMetrics(object):
         ##
         # PREFECT GET RESOURCES
         #
-        deployments = PrefectDeployments(
+        deployments_api = PrefectDeployments(
             self.url,
             self.headers,
             self.max_retries,
@@ -114,8 +114,8 @@ class PrefectMetrics(object):
             self.enable_pagination,
             self.pagination_limit,
             self.timeout,
-        ).get_deployments_info()
-        flows = PrefectFlows(
+        )
+        flows_api = PrefectFlows(
             self.url,
             self.headers,
             self.max_retries,
@@ -123,7 +123,9 @@ class PrefectMetrics(object):
             self.enable_pagination,
             self.pagination_limit,
             self.timeout,
-        ).get_flows_info()
+        )
+        deployments = deployments_api.get_deployments_info()
+        flows = flows_api.get_flows_info()
         flow_runs = PrefectFlowRuns(
             self.url,
             self.headers,
@@ -186,9 +188,17 @@ class PrefectMetrics(object):
             self.timeout,
         ).get_work_queues_info()
 
-        # O(1) id -> name lookups reused across the flow-run metric loops below.
-        deployments_by_id = {d["id"]: d["name"] for d in deployments if d.get("id")}
-        flows_by_id = {f["id"]: f["name"] for f in flows if f.get("id")}
+        # If the server fails a page, the listings are incomplete. So look up
+        # the deployments and flows that the flow runs use by ID.
+        runs = [*flow_runs, *all_flow_runs, *ongoing_flow_runs]
+        deployment_ids = [r.get("deployment_id") for r in runs]
+        deployment_ids += [deployment_id for deployment_id, _, _ in failed_flow_runs]
+        flow_ids = [r.get("flow_id") for r in runs]
+        flow_ids += [flow_id for _, flow_id, _ in failed_flow_runs]
+        deployments_by_id = {
+            d["id"]: d["name"] for d in deployments_api.get_by_ids(deployment_ids)
+        }
+        flows_by_id = {f["id"]: f["name"] for f in flows_api.get_by_ids(flow_ids)}
 
         ##
         # PREFECT DEPLOYMENTS METRICS
@@ -198,7 +208,9 @@ class PrefectMetrics(object):
         prefect_deployments = GaugeMetricFamily(
             "prefect_deployments_total", "Prefect total deployments", labels=[]
         )
-        prefect_deployments.add_metric([], len(deployments))
+        deployments_count = deployments_api.get_count()
+        if deployments_count is not None:
+            prefect_deployments.add_metric([], deployments_count)
         yield prefect_deployments
 
         # prefect_info_deployments metric
@@ -270,7 +282,9 @@ class PrefectMetrics(object):
         prefect_flows = GaugeMetricFamily(
             "prefect_flows_total", "Prefect total flows", labels=[]
         )
-        prefect_flows.add_metric([], len(flows))
+        flows_count = flows_api.get_count()
+        if flows_count is not None:
+            prefect_flows.add_metric([], flows_count)
         yield prefect_flows
 
         # prefect_info_flows metric
@@ -309,31 +323,10 @@ class PrefectMetrics(object):
         )
 
         for flow_run in all_flow_runs:
-            # get deployment name
-            if flow_run.get("deployment_id") is None:
-                deployment_name = "null"
-            else:
-                deployment_name = next(
-                    (
-                        deployment.get("name")
-                        for deployment in deployments
-                        if flow_run.get("deployment_id") == deployment.get("id")
-                    ),
-                    "null",
-                )
-
-            # get flow name
-            if flow_run.get("flow_id") is None:
-                flow_name = "null"
-            else:
-                flow_name = next(
-                    (
-                        flow.get("name")
-                        for flow in flows
-                        if flow.get("id") == flow_run.get("flow_id")
-                    ),
-                    "null",
-                )
+            deployment_name = deployments_by_id.get(
+                flow_run.get("deployment_id"), "null"
+            )
+            flow_name = flows_by_id.get(flow_run.get("flow_id"), "null")
 
             prefect_flow_runs_total_run_time.add_metric(
                 [
@@ -434,31 +427,10 @@ class PrefectMetrics(object):
         state_counts = defaultdict(int)
 
         for flow_run in flow_runs:
-            # get deployment name
-            if flow_run.get("deployment_id") is None:
-                deployment_name = "null"
-            else:
-                deployment_name = next(
-                    (
-                        deployment.get("name")
-                        for deployment in deployments
-                        if flow_run.get("deployment_id") == deployment.get("id")
-                    ),
-                    "null",
-                )
-
-            # get flow name
-            if flow_run.get("flow_id") is None:
-                flow_name = "null"
-            else:
-                flow_name = next(
-                    (
-                        flow.get("name")
-                        for flow in flows
-                        if flow.get("id") == flow_run.get("flow_id")
-                    ),
-                    "null",
-                )
+            deployment_name = deployments_by_id.get(
+                flow_run.get("deployment_id"), "null"
+            )
+            flow_name = flows_by_id.get(flow_run.get("flow_id"), "null")
 
             label_key = (
                 str(deployment_name),

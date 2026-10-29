@@ -44,6 +44,33 @@ class PrefectApiMetric:
         self.pagination_limit = pagination_limit
         self.timeout = timeout
 
+    def _post(self, endpoint: str, data: dict) -> Optional[requests.Response]:
+        """
+        POST to an endpoint, retrying with exponential backoff.
+
+        Returns:
+            requests.Response: The response, or None if all retries failed or
+            the server sent Retry-After.
+        """
+        for retry in range(self.max_retries):
+            try:
+                resp = requests.post(
+                    endpoint, headers=self.headers, json=data, timeout=self.timeout
+                )
+                resp.raise_for_status()
+                return resp
+            except requests.exceptions.RequestException as err:
+                signal = detect_retry_after(err.response)
+                if signal is not None:
+                    log_retry_after(self.logger, endpoint, signal)
+                    return None
+                self.logger.error(err)
+                if retry < self.max_retries - 1:
+                    time.sleep(2**retry)
+
+        self.logger.error("Max retries reached for %s", endpoint)
+        return None
+
     def _get_with_pagination(self, base_data: Optional[dict] = None) -> list:
         """
         Fetch all items from the endpoint with pagination.
@@ -59,35 +86,14 @@ class PrefectApiMetric:
 
         # Run the loop until the current page is empty
         while True:
-            resp = None
-
-            for retry in range(self.max_retries):
-                data = {
-                    **(base_data or {}),
-                    "limit": limit,
-                    "offset": offset,
-                }
-
-                try:
-                    resp = requests.post(
-                        endpoint, headers=self.headers, json=data, timeout=self.timeout
-                    )
-                    resp.raise_for_status()
-                    break
-                except requests.exceptions.RequestException as err:
-                    signal = detect_retry_after(err.response)
-                    if signal is not None:
-                        log_retry_after(self.logger, endpoint, signal)
-                        return all_items
-                    self.logger.error(err)
-                    if retry < self.max_retries - 1:
-                        time.sleep(2**retry)
-                    else:
-                        self.logger.error(
-                            "Max retries reached for %s, returning partial results",
-                            endpoint,
-                        )
-                        return all_items
+            data = {
+                **(base_data or {}),
+                "limit": limit,
+                "offset": offset,
+            }
+            resp = self._post(endpoint, data)
+            if resp is None:
+                return all_items
 
             curr_page_items = resp.json()
 
@@ -105,3 +111,32 @@ class PrefectApiMetric:
             offset += limit
 
         return all_items
+
+    def get_by_ids(self, ids) -> list:
+        """
+        Fetch the items with the given IDs.
+
+        Returns:
+            list: The items found. Items whose request failed are left out.
+        """
+        ids = sorted({i for i in ids if i is not None})
+        items = []
+        for start in range(0, len(ids), self.pagination_limit):
+            data = {
+                self.uri: {"id": {"any_": ids[start : start + self.pagination_limit]}},
+                "limit": self.pagination_limit,
+            }
+            resp = self._post(f"{self.url}/{self.uri}/filter", data)
+            if resp is not None:
+                items.extend(resp.json())
+        return items
+
+    def get_count(self) -> Optional[int]:
+        """
+        Get the number of items from the endpoint's /count route.
+
+        Returns:
+            int: The count, or None if the request failed.
+        """
+        resp = self._post(f"{self.url}/{self.uri}/count", {})
+        return None if resp is None else resp.json()
