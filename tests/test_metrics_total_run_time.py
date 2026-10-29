@@ -31,6 +31,22 @@ def _stub_api(monkeypatch, deployments, flows, all_flow_runs):
         lambda self: flows,
     )
     monkeypatch.setattr(
+        "metrics.metrics.PrefectDeployments.get_by_ids",
+        lambda self, ids: [d for d in deployments if d["id"] in ids],
+    )
+    monkeypatch.setattr(
+        "metrics.metrics.PrefectFlows.get_by_ids",
+        lambda self, ids: [f for f in flows if f["id"] in ids],
+    )
+    monkeypatch.setattr(
+        "metrics.metrics.PrefectDeployments.get_count",
+        lambda self: len(deployments),
+    )
+    monkeypatch.setattr(
+        "metrics.metrics.PrefectFlows.get_count",
+        lambda self: len(flows),
+    )
+    monkeypatch.setattr(
         "metrics.metrics.PrefectFlowRuns.get_flow_runs_info",
         lambda self: [],
     )
