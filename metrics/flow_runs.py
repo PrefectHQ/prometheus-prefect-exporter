@@ -14,17 +14,20 @@ class PrefectFlowRuns(PrefectApiMetric):
     # rarer states (FAILED/CRASHED) out of a limited/paginated result window.
     # See https://github.com/PrefectHQ/prometheus-prefect-exporter/issues/113 and the
     # upstream diagnosis in https://github.com/PrefectHQ/prefect/issues/20341.
-    STATE_TYPES = [
+    NON_TERMINAL_STATE_TYPES = [
         "SCHEDULED",
         "PENDING",
         "RUNNING",
         "PAUSED",
         "CANCELLING",
+    ]
+    TERMINAL_STATE_TYPES = [
         "CANCELLED",
         "COMPLETED",
         "FAILED",
         "CRASHED",
     ]
+    STATE_TYPES = NON_TERMINAL_STATE_TYPES + TERMINAL_STATE_TYPES
 
     def __init__(
         self,
@@ -60,12 +63,18 @@ class PrefectFlowRuns(PrefectApiMetric):
         )
 
         # Calculate timestamps for before and after data
-        after_data = datetime.now(timezone.utc) - timedelta(minutes=offset_minutes)
+        now = datetime.now(timezone.utc)
+        self.now_fmt = now.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        after_data = now - timedelta(minutes=offset_minutes)
         self.after_data_fmt = after_data.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
     def get_flow_runs_info(self) -> list:
         """
-        Get information about flow runs within a specified time range.
+        Get flow runs by their current state.
+
+        Runs in a non-terminal state are returned whatever their age (Scheduled runs
+        once their expected start time has passed). Runs in a terminal state are
+        returned only if they ended within the offset window.
 
         Queries each state type separately and merges the results. A single
         unfiltered query is sorted by start_time and capped by the page/pagination
@@ -80,14 +89,17 @@ class PrefectFlowRuns(PrefectApiMetric):
         """
         flow_runs_by_id = {}
         for state_type in self.STATE_TYPES:
+            flow_runs_filter = {
+                "operator": "and_",
+                "state": {"type": {"any_": [state_type]}},
+            }
+            if state_type == "SCHEDULED":
+                # The scheduler creates runs well ahead of time; count only those due.
+                flow_runs_filter["expected_start_time"] = {"before_": self.now_fmt}
+            elif state_type in self.TERMINAL_STATE_TYPES:
+                flow_runs_filter["end_time"] = {"after_": f"{self.after_data_fmt}"}
             for flow_run in self._get_with_pagination(
-                base_data={
-                    "flow_runs": {
-                        "operator": "and_",
-                        "start_time": {"after_": f"{self.after_data_fmt}"},
-                        "state": {"type": {"any_": [state_type]}},
-                    }
-                }
+                base_data={"flow_runs": flow_runs_filter}
             ):
                 # A run can only hold one state, but de-dupe by id defensively so a
                 # run observed transitioning between queries is never double-counted.

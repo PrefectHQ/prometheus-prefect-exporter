@@ -111,7 +111,7 @@ You can modify environment variables to change the behavior of the exporter.
 | `MAX_RETRIES` | Number of retries to attempt when fetching metrics from Prefect API | `3` |
 | `METRICS_ADDR` | Address to expose metrics on | `0.0.0.0` |
 | `METRICS_PORT` | Port to expose metrics on | `8000` |
-| `OFFSET_MINUTES` | Number of minutes to offset the start time when fetching metrics from Prefect API | `5` |
+| `OFFSET_MINUTES` | Lookback window in minutes for finished flow runs. `prefect_info_flow_runs` counts runs in a terminal state if they ended within it, and runs in any other state regardless of it (Scheduled runs once their expected start time has passed). | `3` |
 | `PREFECT_API_URL` | Prefect API URL | `https://localhost:4200/api` |
 | `PREFECT_API_KEY` | Prefect API key (Optional) | `""` |
 | `PREFECT_API_AUTH_STRING` | Prefect API auth string, automatically base64-encoded (Optional) | `""` |
@@ -120,7 +120,7 @@ You can modify environment variables to change the behavior of the exporter.
 | `PAGINATION_LIMIT` | Number of results to retrieve per request when pagination is enabled. Consider lowering this value for large instances to make more, but smaller, requests. | `200` |
 | `FAILED_RUNS_OFFSET_MINUTES` | Time window in minutes for the `prefect_deployment_failed_flow_runs` metric. Failed runs older than this window are ignored. Set to `0` to disable the metric entirely. | `10080` (7 days) |
 | `FAILED_RUNS_LIMIT` | Maximum number of recent failed runs to expose per deployment in `prefect_deployment_failed_flow_runs`. | `10` |
-| `ENABLE_FLOW_RUN_NAME_LABEL` | Add `flow_run_name` label to `prefect_info_flow_runs` and `prefect_flow_runs_ongoing_run_time`. Increases cardinality proportional to the number of concurrent flow runs within the `OFFSET_MINUTES` window, not total historical runs. Series go stale once runs fall outside the window. Note: `prefect_flow_runs_ongoing_run_time` always carries a `flow_run_id` label so each ongoing run is a distinct series (cardinality bounded by the number of concurrent ongoing runs, which is self-expiring). | `False` |
+| `ENABLE_FLOW_RUN_NAME_LABEL` | Add `flow_run_name` label to `prefect_info_flow_runs` and `prefect_flow_runs_ongoing_run_time`. Increases cardinality proportional to the number of unfinished flow runs plus those that finished within the `OFFSET_MINUTES` window, not total historical runs. Series go stale once runs finish and fall outside the window. Note: `prefect_flow_runs_ongoing_run_time` always carries a `flow_run_id` label so each ongoing run is a distinct series (cardinality bounded by the number of concurrent ongoing runs, which is self-expiring). | `False` |
 
 ## Contributing
 

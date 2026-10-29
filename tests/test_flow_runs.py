@@ -122,14 +122,32 @@ def test_results_deduplicated_by_id():
 
 
 @responses.activate
-def test_carries_start_time_filter():
-    """Each per-state query still constrains by the start_time window."""
+def test_time_filter_per_state_type():
+    """Terminal runs are windowed on end_time, Scheduled runs are limited to those
+    due, and other runs are not filtered by time."""
     _register_by_state({})
-    _make().get_flow_runs_info()
+    flow_runs = _make()
+    flow_runs.get_flow_runs_info()
 
+    time_filters = {}
     for call in responses.calls:
-        body = json.loads(call.request.body)
-        assert "after_" in body["flow_runs"]["start_time"]
+        flow_runs_filter = json.loads(call.request.body)["flow_runs"]
+        (state_type,) = flow_runs_filter.pop("state")["type"]["any_"]
+        del flow_runs_filter["operator"]
+        time_filters[state_type] = flow_runs_filter
+
+    ended = {"end_time": {"after_": flow_runs.after_data_fmt}}
+    assert time_filters == {
+        "SCHEDULED": {"expected_start_time": {"before_": flow_runs.now_fmt}},
+        "PENDING": {},
+        "RUNNING": {},
+        "PAUSED": {},
+        "CANCELLING": {},
+        "CANCELLED": ended,
+        "COMPLETED": ended,
+        "FAILED": ended,
+        "CRASHED": ended,
+    }
 
 
 @responses.activate
