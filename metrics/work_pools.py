@@ -14,6 +14,7 @@ class PrefectWorkPools(PrefectApiMetric):
         logger,
         enable_pagination,
         pagination_limit,
+        timeout,
         uri="work_pools",
     ) -> None:
         """
@@ -25,6 +26,7 @@ class PrefectWorkPools(PrefectApiMetric):
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
             uri (str, optional): The URI path for administrative endpoints. Default is "work_pools".
+            timeout (float): Timeout in seconds for each HTTP request.
 
         """
         super().__init__(
@@ -35,6 +37,7 @@ class PrefectWorkPools(PrefectApiMetric):
             enable_pagination=enable_pagination,
             pagination_limit=pagination_limit,
             uri=uri,
+            timeout=timeout,
         )
 
     def get_work_pools_info(self) -> list:

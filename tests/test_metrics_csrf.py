@@ -16,6 +16,7 @@ def _make():
         failed_runs_offset_minutes=10080,
         failed_runs_limit=10,
         max_retries=3,
+        timeout=10,
         client_id="test-client-id",
         csrf_enabled=True,
         logger=logging.getLogger("test"),

@@ -28,6 +28,7 @@ def metrics():
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
     api_auth_string = str(os.getenv("PREFECT_API_AUTH_STRING", ""))
     csrf_client_id = str(uuid.uuid4())
+    request_timeout = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "60"))
     # Configure logging
     logging.basicConfig(
         level=loglevel, format="%(asctime)s - %(name)s - [%(levelname)s] %(message)s"
@@ -50,7 +51,11 @@ def metrics():
 
     # check endpoint
     PrefectHealthz(
-        url=url, headers=headers, max_retries=max_retries, logger=logger
+        url=url,
+        headers=headers,
+        max_retries=max_retries,
+        logger=logger,
+        timeout=request_timeout,
     ).get_health_check()
 
     ##
@@ -87,6 +92,7 @@ def metrics():
         enable_pagination=enable_pagination,
         pagination_limit=pagination_limit,
         enable_flow_run_name_label=enable_flow_run_name_label,
+        timeout=request_timeout,
     )
 
     # Register the metrics with Prometheus
