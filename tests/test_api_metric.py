@@ -1,3 +1,4 @@
+import json
 import logging
 from unittest.mock import MagicMock
 
@@ -116,3 +117,26 @@ def test_503_without_retry_after_still_retries(monkeypatch):
     assert result == []
     assert len(responses.calls) == 3
     assert sleep_mock.call_count == 2
+
+
+@responses.activate
+def test_get_by_ids_chunks_to_pagination_limit():
+    url = "http://prefect.test/api/deployments/filter"
+    responses.add(responses.POST, url, json=[{"id": "a"}, {"id": "b"}])
+    responses.add(responses.POST, url, json=[{"id": "c"}])
+
+    result = _make(pagination_limit=2).get_by_ids(["c", "a", None, "b", "a"])
+
+    assert result == [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+    bodies = [json.loads(call.request.body) for call in responses.calls]
+    assert bodies == [
+        {"deployments": {"id": {"any_": ["a", "b"]}}, "limit": 2},
+        {"deployments": {"id": {"any_": ["c"]}}, "limit": 2},
+    ]
+
+
+@responses.activate
+def test_get_count():
+    responses.add(responses.POST, "http://prefect.test/api/flows/count", json=42)
+
+    assert _make(uri="flows").get_count() == 42

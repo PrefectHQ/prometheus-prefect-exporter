@@ -41,7 +41,7 @@ def _make(enable_flow_run_name_label=False):
 
 
 def _register_endpoints(ongoing_runs):
-    """Mock every /filter endpoint collect() touches.
+    """Mock every endpoint collect() touches.
 
     flow_runs/filter is hit three times with different bodies (recent, all,
     ongoing); a callback routes by request body so only the ongoing query
@@ -57,6 +57,8 @@ def _register_endpoints(ongoing_runs):
         f"{URL}/flows/filter",
         json=[{"id": FLOW_ID, "name": "my-flow"}],
     )
+    responses.add(responses.POST, f"{URL}/deployments/count", json=1)
+    responses.add(responses.POST, f"{URL}/flows/count", json=1)
     responses.add(
         responses.POST,
         f"{URL}/work_pools/filter",
