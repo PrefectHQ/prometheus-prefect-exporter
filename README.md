@@ -121,6 +121,7 @@ You can modify environment variables to change the behavior of the exporter.
 | `FAILED_RUNS_OFFSET_MINUTES` | Time window in minutes for the `prefect_deployment_failed_flow_runs` metric. Failed runs older than this window are ignored. Set to `0` to disable the metric entirely. | `10080` (7 days) |
 | `FAILED_RUNS_LIMIT` | Maximum number of recent failed runs to expose per deployment in `prefect_deployment_failed_flow_runs`. | `10` |
 | `ENABLE_FLOW_RUN_NAME_LABEL` | Add `flow_run_name` label to `prefect_info_flow_runs` and `prefect_flow_runs_ongoing_run_time`. Increases cardinality proportional to the number of concurrent flow runs within the `OFFSET_MINUTES` window, not total historical runs. Series go stale once runs fall outside the window. Note: `prefect_flow_runs_ongoing_run_time` always carries a `flow_run_id` label so each ongoing run is a distinct series (cardinality bounded by the number of concurrent ongoing runs, which is self-expiring). | `False` |
+| `COLLECTION_INTERVAL_SECONDS` | When greater than `0`, a background thread collects metrics from the Prefect API, waiting this many seconds between collections, and each scrape serves the latest collection without calling the API. Use it when a collection takes longer than your scrape timeout, or when several scrapers poll the exporter. Metrics are absent until the first collection completes, and `prefect_exporter_last_successful_collection_timestamp_seconds` reports when the served metrics were collected. When `0`, every scrape collects synchronously. | `0` |
 
 ## Contributing
 

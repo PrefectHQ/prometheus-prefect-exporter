@@ -28,6 +28,7 @@ def metrics():
     api_key = str(os.getenv("PREFECT_API_KEY", ""))
     api_auth_string = str(os.getenv("PREFECT_API_AUTH_STRING", ""))
     csrf_client_id = str(uuid.uuid4())
+    collection_interval_seconds = float(os.getenv("COLLECTION_INTERVAL_SECONDS", "0"))
     # Configure logging
     logging.basicConfig(
         level=loglevel, format="%(asctime)s - %(name)s - [%(levelname)s] %(message)s"
@@ -87,11 +88,24 @@ def metrics():
         enable_pagination=enable_pagination,
         pagination_limit=pagination_limit,
         enable_flow_run_name_label=enable_flow_run_name_label,
+        collection_interval_seconds=collection_interval_seconds,
     )
 
     # Register the metrics with Prometheus
     logger.info("Initializing metrics...")
     REGISTRY.register(metrics)
+
+    stop = threading.Event()
+    if collection_interval_seconds:
+        logger.info(
+            f"Collecting metrics in the background every {collection_interval_seconds}s"
+        )
+        threading.Thread(
+            target=metrics.run_collection_loop,
+            args=(stop,),
+            name="prefect-metrics-collector",
+            daemon=True,
+        ).start()
 
     # Start the HTTP server to expose Prometheus metrics
     start_http_server(metrics_port, metrics_addr)
@@ -99,8 +113,9 @@ def metrics():
 
     # Keep the process alive
     try:
-        threading.Event().wait()
+        stop.wait()
     except KeyboardInterrupt:
+        stop.set()
         logger.info("Shutting down...")
 
 

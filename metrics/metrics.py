@@ -1,3 +1,4 @@
+import threading
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -33,6 +34,7 @@ class PrefectMetrics(object):
         enable_pagination,
         pagination_limit,
         enable_flow_run_name_label=False,
+        collection_interval_seconds=0,
     ) -> None:
         """
         Initialize the PrefectMetrics instance.
@@ -50,6 +52,8 @@ class PrefectMetrics(object):
             enable_pagination (bool): Whether pagination is enabled.
             pagination_limit (int): The pagination limit.
             enable_flow_run_name_label (bool): Whether to include flow_run_name in prefect_info_flow_runs and prefect_flow_runs_ongoing_run_time.
+            collection_interval_seconds (float): Seconds between background collections.
+                0 collects synchronously on every scrape.
         """
 
         self.headers = headers
@@ -66,18 +70,60 @@ class PrefectMetrics(object):
         self.enable_flow_run_name_label = enable_flow_run_name_label
         self.csrf_token = None
         self.csrf_token_expiration = None
+        self.collection_interval_seconds = collection_interval_seconds
+        # (metric families, unix time) of the last successful background collection
+        self._snapshot = None
 
     def collect(self):
         """
         Collect all Prefect metrics for a single Prometheus scrape.
 
-        On failure, logs the error and yields no metrics. The exporter stays
-        alive so subsequent scrapes can succeed.
+        With background collection enabled, yields the latest snapshot without
+        calling the Prefect API (nothing before the first collection succeeds).
+        Otherwise collects synchronously; on failure, logs the error and yields
+        no metrics. The exporter stays alive so subsequent scrapes can succeed.
         """
+        if self.collection_interval_seconds:
+            snapshot = self._snapshot
+            if snapshot is None:
+                return
+            families, collected_at = snapshot
+            yield from families
+            yield GaugeMetricFamily(
+                "prefect_exporter_last_successful_collection_timestamp_seconds",
+                "Unix time of the last successful background collection. "
+                "All other prefect_* metrics are cached from that collection.",
+                value=collected_at,
+            )
+            return
         try:
             yield from self._collect_metrics()
         except Exception:
             self.logger.exception("Failed to collect metrics, skipping this scrape")
+
+    def collect_once(self) -> None:
+        """
+        Run one collection and store it as the snapshot served by collect().
+
+        On failure, logs the error and keeps the previous snapshot.
+        """
+        try:
+            families = tuple(self._collect_metrics())
+        except Exception:
+            self.logger.exception(
+                "Failed to collect metrics, serving the previous snapshot"
+            )
+            return
+        self._snapshot = (families, time.time())
+
+    def run_collection_loop(self, stop: threading.Event) -> None:
+        """
+        Collect every collection_interval_seconds until stop is set.
+        """
+        while True:
+            self.collect_once()
+            if stop.wait(self.collection_interval_seconds):
+                return
 
     def _collect_metrics(self):
         """
