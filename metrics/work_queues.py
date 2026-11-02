@@ -20,6 +20,7 @@ class PrefectWorkQueues(PrefectApiMetric):
         logger,
         enable_pagination,
         pagination_limit,
+        timeout,
         uri="work_queues",
     ) -> None:
         """
@@ -31,6 +32,7 @@ class PrefectWorkQueues(PrefectApiMetric):
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
             uri (str, optional): The URI path for administrative endpoints. Default is "work_queues".
+            timeout (float): Timeout in seconds for each HTTP request.
 
         """
         super().__init__(
@@ -41,6 +43,7 @@ class PrefectWorkQueues(PrefectApiMetric):
             enable_pagination=enable_pagination,
             pagination_limit=pagination_limit,
             uri=uri,
+            timeout=timeout,
         )
 
     def get_work_queues_info(self) -> list:
@@ -76,7 +79,9 @@ class PrefectWorkQueues(PrefectApiMetric):
 
         for retry in range(self.max_retries):
             try:
-                resp = requests.get(endpoint, headers=self.headers)
+                resp = requests.get(
+                    endpoint, headers=self.headers, timeout=self.timeout
+                )
                 resp.raise_for_status()
                 return resp.json()
             except requests.exceptions.RequestException as err:

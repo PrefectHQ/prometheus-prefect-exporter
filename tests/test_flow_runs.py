@@ -22,6 +22,7 @@ def _make(enable_pagination=False, pagination_limit=200):
         url=URL,
         headers={"accept": "application/json"},
         max_retries=3,
+        timeout=10,
         offset_minutes=3,
         logger=logging.getLogger("test"),
         enable_pagination=enable_pagination,

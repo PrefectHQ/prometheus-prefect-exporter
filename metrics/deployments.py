@@ -14,6 +14,7 @@ class PrefectDeployments(PrefectApiMetric):
         logger,
         enable_pagination,
         pagination_limit,
+        timeout,
         uri="deployments",
     ) -> None:
         """
@@ -26,6 +27,7 @@ class PrefectDeployments(PrefectApiMetric):
             logger (obj): The logger object.
             uri (str, optional): The URI path for deployments endpoints. Default is "deployments".
             pagination_limit (int): The maximum number of pages to fetch.
+            timeout (float): Timeout in seconds for each HTTP request.
         """
         super().__init__(
             url=url,
@@ -35,6 +37,7 @@ class PrefectDeployments(PrefectApiMetric):
             enable_pagination=enable_pagination,
             pagination_limit=pagination_limit,
             uri=uri,
+            timeout=timeout,
         )
 
     def get_deployments_info(self) -> list:

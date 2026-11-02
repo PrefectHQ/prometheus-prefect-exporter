@@ -32,6 +32,7 @@ class PrefectMetrics(object):
         logger,
         enable_pagination,
         pagination_limit,
+        timeout,
         enable_flow_run_name_label=False,
     ) -> None:
         """
@@ -49,6 +50,7 @@ class PrefectMetrics(object):
             client_id (str): The client ID for CSRF.
             enable_pagination (bool): Whether pagination is enabled.
             pagination_limit (int): The pagination limit.
+            timeout (float): Timeout in seconds for each HTTP request.
             enable_flow_run_name_label (bool): Whether to include flow_run_name in prefect_info_flow_runs and prefect_flow_runs_ongoing_run_time.
         """
 
@@ -63,6 +65,7 @@ class PrefectMetrics(object):
         self.csrf_enabled = csrf_enabled
         self.enable_pagination = enable_pagination
         self.pagination_limit = pagination_limit
+        self.timeout = timeout
         self.enable_flow_run_name_label = enable_flow_run_name_label
         self.csrf_token = None
         self.csrf_token_expiration = None
@@ -110,6 +113,7 @@ class PrefectMetrics(object):
             self.logger,
             self.enable_pagination,
             self.pagination_limit,
+            self.timeout,
         ).get_deployments_info()
         flows = PrefectFlows(
             self.url,
@@ -118,6 +122,7 @@ class PrefectMetrics(object):
             self.logger,
             self.enable_pagination,
             self.pagination_limit,
+            self.timeout,
         ).get_flows_info()
         flow_runs = PrefectFlowRuns(
             self.url,
@@ -127,6 +132,7 @@ class PrefectMetrics(object):
             self.logger,
             self.enable_pagination,
             self.pagination_limit,
+            self.timeout,
         ).get_flow_runs_info()
         all_flow_runs = PrefectFlowRuns(
             self.url,
@@ -136,6 +142,7 @@ class PrefectMetrics(object):
             self.logger,
             self.enable_pagination,
             self.pagination_limit,
+            self.timeout,
         ).get_all_flow_runs_info()
         ongoing_flow_runs = PrefectFlowRuns(
             self.url,
@@ -145,6 +152,7 @@ class PrefectMetrics(object):
             self.logger,
             self.enable_pagination,
             self.pagination_limit,
+            self.timeout,
         ).get_ongoing_flow_runs_info()
         if self.failed_runs_offset_minutes == 0:
             failed_flow_runs = {}
@@ -157,6 +165,7 @@ class PrefectMetrics(object):
                 self.logger,
                 self.enable_pagination,
                 self.pagination_limit,
+                self.timeout,
             ).get_failed_flow_runs_info(limit=self.failed_runs_limit)
         work_pools = PrefectWorkPools(
             self.url,
@@ -165,6 +174,7 @@ class PrefectMetrics(object):
             self.logger,
             self.enable_pagination,
             self.pagination_limit,
+            self.timeout,
         ).get_work_pools_info()
         work_queues = PrefectWorkQueues(
             self.url,
@@ -173,6 +183,7 @@ class PrefectMetrics(object):
             self.logger,
             self.enable_pagination,
             self.pagination_limit,
+            self.timeout,
         ).get_work_queues_info()
 
         # O(1) id -> name lookups reused across the flow-run metric loops below.
@@ -619,7 +630,9 @@ class PrefectMetrics(object):
 
         for retry in range(self.max_retries):
             try:
-                resp = requests.get(endpoint, headers=self.headers)
+                resp = requests.get(
+                    endpoint, headers=self.headers, timeout=self.timeout
+                )
                 resp.raise_for_status()
                 return CsrfToken.model_validate(resp.json())
             except requests.exceptions.RequestException as err:

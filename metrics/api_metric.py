@@ -20,6 +20,7 @@ class PrefectApiMetric:
         enable_pagination,
         pagination_limit,
         uri,
+        timeout,
     ) -> None:
         """
         Initialize the PrefectDeployments instance.
@@ -32,6 +33,7 @@ class PrefectApiMetric:
             uri (str, optional): The URI path for the intended endpoint.
             enable_pagination (bool): Whether to use pagination or not.
             pagination_limit (int): The limit for pagination.
+            timeout (float): Timeout in seconds for each HTTP request.
         """
         self.headers = headers
         self.uri = uri
@@ -40,6 +42,7 @@ class PrefectApiMetric:
         self.logger = logger
         self.enable_pagination = enable_pagination
         self.pagination_limit = pagination_limit
+        self.timeout = timeout
 
     def _get_with_pagination(self, base_data: Optional[dict] = None) -> list:
         """
@@ -66,7 +69,9 @@ class PrefectApiMetric:
                 }
 
                 try:
-                    resp = requests.post(endpoint, headers=self.headers, json=data)
+                    resp = requests.post(
+                        endpoint, headers=self.headers, json=data, timeout=self.timeout
+                    )
                     resp.raise_for_status()
                     break
                 except requests.exceptions.RequestException as err:

@@ -35,6 +35,7 @@ class PrefectFlowRuns(PrefectApiMetric):
         logger,
         enable_pagination,
         pagination_limit,
+        timeout,
         uri="flow_runs",
     ) -> None:
         """
@@ -47,6 +48,7 @@ class PrefectFlowRuns(PrefectApiMetric):
             max_retries (int): The maximum number of retries for HTTP requests.
             logger (obj): The logger object.
             uri (str, optional): The URI path for flow runs endpoints. Default is "flow_runs".
+            timeout (float): Timeout in seconds for each HTTP request.
 
         """
         super().__init__(
@@ -57,6 +59,7 @@ class PrefectFlowRuns(PrefectApiMetric):
             enable_pagination=enable_pagination,
             pagination_limit=pagination_limit,
             uri=uri,
+            timeout=timeout,
         )
 
         # Calculate timestamps for before and after data
