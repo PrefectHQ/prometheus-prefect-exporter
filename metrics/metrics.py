@@ -115,6 +115,7 @@ class PrefectMetrics(object):
             self.pagination_limit,
             self.timeout,
         )
+        deployments = deployments_api.get_deployments_info()
         flows_api = PrefectFlows(
             self.url,
             self.headers,
@@ -124,7 +125,6 @@ class PrefectMetrics(object):
             self.pagination_limit,
             self.timeout,
         )
-        deployments = deployments_api.get_deployments_info()
         flows = flows_api.get_flows_info()
         flow_runs = PrefectFlowRuns(
             self.url,
@@ -188,17 +188,19 @@ class PrefectMetrics(object):
             self.timeout,
         ).get_work_queues_info()
 
-        # If the server fails a page, the listings are incomplete. So look up
-        # the deployments and flows that the flow runs use by ID.
+        deployments_by_id = {d["id"]: d["name"] for d in deployments if d.get("id")}
+        flows_by_id = {f["id"]: f["name"] for f in flows if f.get("id")}
+
+        # A failed page leaves the listings incomplete, so fetch missing names by ID.
         runs = [*flow_runs, *all_flow_runs, *ongoing_flow_runs]
-        deployment_ids = [r.get("deployment_id") for r in runs]
-        deployment_ids += [deployment_id for deployment_id, _, _ in failed_flow_runs]
-        flow_ids = [r.get("flow_id") for r in runs]
-        flow_ids += [flow_id for _, flow_id, _ in failed_flow_runs]
-        deployments_by_id = {
-            d["id"]: d["name"] for d in deployments_api.get_by_ids(deployment_ids)
-        }
-        flows_by_id = {f["id"]: f["name"] for f in flows_api.get_by_ids(flow_ids)}
+        deployment_ids = {r.get("deployment_id") for r in runs}
+        deployment_ids.update(deployment_id for deployment_id, _, _ in failed_flow_runs)
+        flow_ids = {r.get("flow_id") for r in runs}
+        flow_ids.update(flow_id for _, flow_id, _ in failed_flow_runs)
+        for d in deployments_api.get_by_ids(deployment_ids - deployments_by_id.keys()):
+            deployments_by_id[d["id"]] = d["name"]
+        for f in flows_api.get_by_ids(flow_ids - flows_by_id.keys()):
+            flows_by_id[f["id"]] = f["name"]
 
         ##
         # PREFECT DEPLOYMENTS METRICS

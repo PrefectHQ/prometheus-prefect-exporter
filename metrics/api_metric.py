@@ -117,7 +117,7 @@ class PrefectApiMetric:
         Fetch the items with the given IDs.
 
         Returns:
-            list: The items found. Items whose request failed are left out.
+            list: The items found, stopping at the first request that fails.
         """
         ids = sorted({i for i in ids if i is not None})
         items = []
@@ -127,8 +127,9 @@ class PrefectApiMetric:
                 "limit": self.pagination_limit,
             }
             resp = self._post(f"{self.url}/{self.uri}/filter", data)
-            if resp is not None:
-                items.extend(resp.json())
+            if resp is None:
+                break
+            items.extend(resp.json())
         return items
 
     def get_count(self) -> Optional[int]:

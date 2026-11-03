@@ -141,3 +141,66 @@ def test_get_count():
     responses.add(responses.POST, "http://prefect.test/api/flows/count", json=42)
 
     assert _make(uri="flows").get_count() == 42
+
+
+@responses.activate
+def test_get_by_ids_stops_after_retry_after(monkeypatch):
+    monkeypatch.setattr("metrics.api_metric.time.sleep", MagicMock())
+
+    url = "http://prefect.test/api/deployments/filter"
+    responses.add(
+        responses.POST,
+        url,
+        status=503,
+        headers={"Retry-After": "1200", "Prefect-Maintenance": "true"},
+        json={"detail": "maintenance"},
+    )
+    responses.add(responses.POST, url, json=[{"id": "c"}])
+
+    result = _make(pagination_limit=2).get_by_ids(["a", "b", "c"])
+
+    assert result == []
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_get_by_ids_stops_after_max_retries(monkeypatch):
+    monkeypatch.setattr("metrics.api_metric.time.sleep", MagicMock())
+
+    url = "http://prefect.test/api/deployments/filter"
+    responses.add(responses.POST, url, json=[{"id": "a"}, {"id": "b"}])
+    responses.add(responses.POST, url, status=500, json={"err": "boom"})
+    responses.add(responses.POST, url, json=[{"id": "e"}])
+
+    result = _make(max_retries=1, pagination_limit=2).get_by_ids(
+        ["a", "b", "c", "d", "e"]
+    )
+
+    assert result == [{"id": "a"}, {"id": "b"}]
+    assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_get_count_returns_none_on_failure(monkeypatch):
+    monkeypatch.setattr("metrics.api_metric.time.sleep", MagicMock())
+
+    url = "http://prefect.test/api/flows/count"
+    for _ in range(3):
+        responses.add(responses.POST, url, status=500, json={"err": "boom"})
+
+    assert _make(uri="flows", max_retries=3).get_count() is None
+    assert len(responses.calls) == 3
+
+
+@responses.activate
+def test_get_count_returns_none_after_retry_after():
+    responses.add(
+        responses.POST,
+        "http://prefect.test/api/flows/count",
+        status=429,
+        headers={"Retry-After": "5"},
+        json={"detail": "rate limited"},
+    )
+
+    assert _make(uri="flows").get_count() is None
+    assert len(responses.calls) == 1

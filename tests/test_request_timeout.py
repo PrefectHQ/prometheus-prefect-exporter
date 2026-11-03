@@ -22,6 +22,8 @@ def test_timeout_is_passed_to_every_request():
     )
     responses.add(responses.POST, f"{URL}/deployments/filter", json=[])
     responses.add(responses.POST, f"{URL}/flows/filter", json=[])
+    responses.add(responses.POST, f"{URL}/deployments/count", json=0)
+    responses.add(responses.POST, f"{URL}/flows/count", json=0)
     responses.add(responses.POST, f"{URL}/flow_runs/filter", json=[])
     responses.add(responses.POST, f"{URL}/work_pools/filter", json=[])
     responses.add(
