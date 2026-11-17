@@ -66,7 +66,7 @@ def close_kind(
     handshake_status: Optional[int],
     auth_failed: bool,
     close_code: Optional[int],
-    saw_event: bool,
+    delivered: bool,
     asked_for_backfill: bool,
 ) -> str:
     """
@@ -77,7 +77,9 @@ def close_kind(
     rejected at the handshake with a 4xx, or answered with an `auth_failure`
     message, or closed with 1008; and an error while replaying backfill, which
     happens before any live event, escapes the server's handler, so the
-    server closes with 1011.
+    server closes with 1011. A subscription that already delivered (an event,
+    or its grace period passed) and then closes is an ordinary server close,
+    whatever the code.
 
     Returns:
         str: "refused", "backfill_failure", "server_close" (any other close
@@ -88,9 +90,9 @@ def close_kind(
         return "refused"
     if auth_failed:
         return "refused"
-    if close_code == POLICY_VIOLATION and not saw_event:
+    if close_code == POLICY_VIOLATION and not delivered:
         return "refused"
-    if close_code == INTERNAL_ERROR and not saw_event and asked_for_backfill:
+    if close_code == INTERNAL_ERROR and not delivered and asked_for_backfill:
         return "backfill_failure"
     if close_code is not None and close_code != 1006:
         return "server_close"

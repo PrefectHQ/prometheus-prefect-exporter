@@ -19,6 +19,9 @@ from metrics.stream.client import EventStream, StreamSettings
 from metrics.stream.counters import FlowRunStreamMetrics
 
 
+STREAM_RESTART_DELAY_SECONDS = 5.0
+
+
 class Exporter:
     """
     The exporter's background work: the inventory and run poll loops, and the
@@ -102,6 +105,11 @@ class Exporter:
                 api_url=config.url,
                 token=config.stream_token,
                 backfill_window=config.backfill_window_seconds,
+                refusal_hint=(
+                    "On Prefect Cloud the API key needs the see_events scope."
+                    if config.is_cloud
+                    else ""
+                ),
                 **(stream_settings_overrides or {}),
             ),
             FlowRunEventClassifier(
@@ -113,9 +121,7 @@ class Exporter:
             stream_disabled=self._stream_disabled(),
         )
         self.stream_thread = threading.Thread(
-            target=lambda: asyncio.run(self.stream.run()),
-            name="event-stream",
-            daemon=True,
+            target=self._run_stream, name="event-stream", daemon=True
         )
 
     def _stream_disabled(self) -> bool:
@@ -129,6 +135,17 @@ class Exporter:
             )
             return False
         return not enabled
+
+    def _run_stream(self) -> None:
+        # The stream catches its own errors; this restarts it if one still
+        # escapes, so the thread never ends while the exporter runs.
+        while not self.stop_event.is_set():
+            try:
+                asyncio.run(self.stream.run())
+            except Exception:
+                self.logger.exception("The event stream stopped; restarting it")
+            if self.stop_event.wait(STREAM_RESTART_DELAY_SECONDS):
+                return
 
     def start(self) -> None:
         self.stream_thread.start()

@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -208,7 +208,9 @@ def test_ping_timeout_closes_and_counts_from_the_last_pong():
                     await wait_until(
                         lambda: harness.value("prefect_exporter_stream_connected") == 1
                     )
-                    await asyncio.sleep(0.3)
+                    # Long enough that the last pong is well after the connect,
+                    # so counting from the connect would read about 2 seconds.
+                    await asyncio.sleep(2.0)
                     relay.freeze()
                     await wait_until(lambda: len(server.filters) == 2)
                     await wait_until(
@@ -237,7 +239,7 @@ def test_ping_timeout_closes_and_counts_from_the_last_pong():
 def test_three_failed_backfills_fall_back_to_one_connect_without_backfill():
     async def scenario():
         async with FakeEventsServer() as server:
-            failing_backfill = _close_after([], 1011, "clickhouse unavailable")
+            failing_backfill = _close_after([], 1011, "backfill query failed")
             server.scripts = [
                 _close_after([TERMINALS[0]], 1001),
                 failing_backfill,
@@ -445,5 +447,212 @@ def test_events_update_the_health_metrics():
                     "prefect_exporter_stream_last_event_timestamp_seconds"
                 ) == pytest.approx(datetime.now().timestamp(), abs=5)
                 assert harness.value("prefect_exporter_stream_connected") == 1
+
+    run(scenario())
+
+
+def test_a_subscription_that_ends_before_delivering_still_ends_the_disconnection():
+    async def scenario():
+        async def short_lived(ws, filter_message):
+            # Open long enough to measure, closed before the grace period.
+            await asyncio.sleep(0.6)
+            await ws.close(1001)
+
+        async with FakeEventsServer() as server:
+            server.scripts = [_close_after([TERMINALS[0]], 1001), short_lived]
+            # Every reconnect waits a fixed 0.5 s.
+            async with Harness(
+                server.port,
+                delivering_grace=1.0,
+                immediate_retries=0,
+                backoff_initial=0.5,
+                backoff_max=0.5,
+            ) as harness:
+                await wait_until(lambda: len(server.filters) == 3)
+                # The third subscription delivers after its 1 s grace period.
+                await asyncio.sleep(1.3)
+                # Two 0.5 s waits are disconnected time; the 0.6 s the second
+                # subscription was open is not.
+                assert harness.value(
+                    "prefect_exporter_stream_disconnected_seconds_total"
+                ) == pytest.approx(1.0, abs=0.25)
+
+    run(scenario())
+
+
+def test_a_delivering_backfill_connect_resets_the_failures_in_a_row():
+    async def scenario():
+        async with FakeEventsServer() as server:
+            failing_backfill = _close_after([], 1011, "backfill query failed")
+            server.scripts = [
+                _close_after([TERMINALS[0]], 1001),
+                failing_backfill,
+                failing_backfill,
+                _close_after([TERMINALS[1]], 1001),
+                failing_backfill,
+                failing_backfill,
+            ]
+            async with Harness(server.port):
+                await wait_until(lambda: len(server.filters) == 7)
+                # Two failures, a success, two failures: never three in a row,
+                # so every reconnect asks for backfill.
+                assert [f["backfill"] for f in server.filters] == [
+                    False,
+                    True,
+                    True,
+                    True,
+                    True,
+                    True,
+                    True,
+                ]
+
+    run(scenario())
+
+
+@pytest.mark.parametrize("code", [1008, 1011])
+def test_a_quiet_delivering_socket_closed_later_is_an_ordinary_close(code):
+    async def scenario():
+        async def quiet_then_close(ws, filter_message):
+            await asyncio.sleep(0.5)
+            await ws.close(code, "late close")
+
+        async with FakeEventsServer() as server:
+            server.scripts = [_close_after([TERMINALS[0]], 1001), quiet_then_close]
+            async with Harness(server.port) as harness:
+                await wait_until(lambda: len(server.filters) == 3)
+                assert harness.value("prefect_exporter_stream_refused") == 0
+                assert (
+                    harness.value("prefect_exporter_stream_backfill_failures_total")
+                    == 0
+                )
+                assert (
+                    harness.value(
+                        "prefect_exporter_stream_reconnects_total",
+                        reason="server_close",
+                    )
+                    == 2
+                )
+                assert server.filters[2]["backfill"] is True
+
+    run(scenario())
+
+
+def test_a_malformed_frame_is_skipped_and_the_subscription_continues():
+    async def scenario():
+        async def bad_then_good(ws, filter_message):
+            await ws.send("not json")
+            await ws.send(json.dumps(["not", "a", "message"]))
+            await ws.send(event_message(TERMINALS[0]))
+            await ws.wait_closed()
+
+        async with FakeEventsServer() as server:
+            server.scripts = [bad_then_good]
+            async with Harness(server.port) as harness:
+                await wait_until(lambda: harness.completed_count() == 1)
+                assert (
+                    harness.value(
+                        "prefect_exporter_stream_events_total", outcome="malformed"
+                    )
+                    == 2
+                )
+                assert server.connections == 1
+
+    run(scenario())
+
+
+def test_an_event_that_cannot_be_handled_does_not_move_the_cursor():
+    async def scenario():
+        good = TERMINALS[0]
+        bad = {"occurred": "2026-11-17T18:00:00+00:00", "resource": "not a mapping"}
+
+        async with FakeEventsServer() as server:
+            server.scripts = [_close_after([good, bad], 1001)]
+            async with Harness(server.port) as harness:
+                await wait_until(lambda: len(server.filters) == 2)
+                assert (
+                    harness.value(
+                        "prefect_exporter_stream_events_total", outcome="malformed"
+                    )
+                    == 1
+                )
+                assert datetime.fromisoformat(
+                    server.filters[1]["filter"]["occurred"]["since"]
+                ) == datetime.fromisoformat(good["occurred"]) - timedelta(minutes=1)
+
+    run(scenario())
+
+
+def test_a_future_occurred_does_not_move_the_cursor_past_now():
+    async def scenario():
+        future = dict(TERMINALS[0])
+        future["occurred"] = (
+            datetime.now(timezone.utc) + timedelta(days=1)
+        ).isoformat()
+
+        async with FakeEventsServer() as server:
+            server.scripts = [_close_after([future], 1001)]
+            async with Harness(server.port):
+                await wait_until(lambda: len(server.filters) == 2)
+                since = datetime.fromisoformat(
+                    server.filters[1]["filter"]["occurred"]["since"]
+                )
+                assert since <= datetime.now(timezone.utc) - timedelta(seconds=59)
+
+    run(scenario())
+
+
+def test_a_non_json_auth_reply_is_retried_and_the_stream_recovers():
+    async def scenario():
+        async with FakeEventsServer() as server:
+            server.auth_reply = "<html>proxy error</html>"
+            async with Harness(server.port) as harness:
+                await wait_until(lambda: server.connections >= 2)
+                assert harness.task.done() is False
+                server.auth_reply = {"type": "auth_success"}
+                server.scripts = [_hold_after([TERMINALS[0]])]
+                await wait_until(lambda: harness.completed_count() == 1)
+                assert (
+                    harness.value(
+                        "prefect_exporter_stream_reconnects_total", reason="error"
+                    )
+                    >= 2
+                )
+
+    run(scenario())
+
+
+def test_an_unexpected_error_in_the_loop_is_logged_and_the_stream_continues(caplog):
+    async def scenario():
+        async with FakeEventsServer() as server:
+            server.scripts = [_hold_after([TERMINALS[0]])]
+            harness = Harness(server.port)
+            original = harness.stream._subscribe
+            calls = []
+
+            async def flaky_subscribe(backfill):
+                calls.append(backfill)
+                if len(calls) == 1:
+                    raise RuntimeError("unexpected")
+                return await original(backfill)
+
+            harness.stream._subscribe = flaky_subscribe
+            async with harness:
+                await wait_until(lambda: harness.completed_count() == 1)
+            assert calls[1] is False
+            assert "Event stream failed; reconnecting" in caplog.text
+
+    run(scenario())
+
+
+def test_a_404_handshake_is_logged_as_endpoint_not_found(caplog):
+    async def scenario():
+        async with FakeEventsServer() as server:
+            server.refuse_handshake_with = 404
+            async with Harness(server.port) as harness:
+                await wait_until(
+                    lambda: harness.value("prefect_exporter_stream_refused") == 1
+                )
+        assert "was not found (wrong URL or old server)" in caplog.text
+        assert "see_events" not in caplog.text
 
     run(scenario())

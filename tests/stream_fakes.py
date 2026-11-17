@@ -19,6 +19,7 @@ class FakeEventsServer:
     def __init__(self):
         self.scripts = []
         self.filters = []
+        self.filter_times = []
         self.auths = []
         self.subprotocols = []
         self.connections = 0
@@ -44,12 +45,17 @@ class FakeEventsServer:
             self.subprotocols.append(ws.subprotocol)
             auth = json.loads(await ws.recv())
             self.auths.append(auth)
+            if isinstance(self.auth_reply, str):
+                await ws.send(self.auth_reply)
+                await ws.close(1000)
+                return
             await ws.send(json.dumps(self.auth_reply))
             if self.auth_reply["type"] != "auth_success":
                 await ws.close(1008, self.auth_reply.get("reason", "refused"))
                 return
             filter_message = json.loads(await ws.recv())
             self.filters.append(filter_message)
+            self.filter_times.append(time.monotonic())
             script = self.scripts.pop(0) if self.scripts else self.default_script
             await script(ws, filter_message)
         finally:

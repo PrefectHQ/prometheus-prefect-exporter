@@ -79,11 +79,11 @@ def test_events_out_url(api_url, socket_url):
         (dict(handshake_status=502), "error"),
         (dict(auth_failed=True), "refused"),
         (dict(close_code=1008), "refused"),
-        (dict(close_code=1008, saw_event=True), "server_close"),
+        (dict(close_code=1008, delivered=True), "server_close"),
         (dict(close_code=1011, asked_for_backfill=True), "backfill_failure"),
         (dict(close_code=1011, asked_for_backfill=False), "server_close"),
         (
-            dict(close_code=1011, asked_for_backfill=True, saw_event=True),
+            dict(close_code=1011, asked_for_backfill=True, delivered=True),
             "server_close",
         ),
         (dict(close_code=1001), "server_close"),
@@ -96,7 +96,7 @@ def test_close_kind(kwargs, kind):
         handshake_status=None,
         auth_failed=False,
         close_code=None,
-        saw_event=False,
+        delivered=False,
         asked_for_backfill=False,
     )
     arguments.update(kwargs)
@@ -324,3 +324,49 @@ def test_cloud_does_not_read_server_settings(monkeypatch):
     assert exporter.stream.settings.backfill_window == 120.0
     assert exporter.stream.settings.token == "k"
     assert exporter.stream.url.startswith("wss://api.prefect.cloud/")
+
+
+@responses.activate
+@pytest.mark.parametrize(
+    "reply",
+    [
+        dict(body="<html>proxy</html>", content_type="text/html"),
+        dict(json=["not", "a", "mapping"]),
+        dict(json={"server": "unexpected"}),
+    ],
+)
+def test_unreadable_server_settings_assume_the_stream_is_enabled(reply):
+    url = "http://prefect.test/api"
+    responses.add(responses.GET, f"{url}/admin/settings", **reply)
+
+    exporter = Exporter(
+        Config.from_env({"PREFECT_API_URL": url}),
+        CollectorRegistry(),
+        logging.getLogger("test"),
+    )
+
+    assert exporter.stream.stream_disabled is False
+
+
+def test_stream_thread_restarts_a_stream_that_raised(monkeypatch):
+    monkeypatch.setattr("metrics.exporter.STREAM_RESTART_DELAY_SECONDS", 0.01)
+    monkeypatch.setattr(
+        "metrics.exporter.PrefectAdmin.stream_out_enabled", lambda self: True
+    )
+    exporter = Exporter(
+        Config.from_env({}), CollectorRegistry(), logging.getLogger("test")
+    )
+    runs = []
+
+    async def flaky_run():
+        runs.append(1)
+        if len(runs) == 1:
+            raise RuntimeError("escaped")
+        exporter.stop_event.set()
+
+    monkeypatch.setattr(exporter.stream, "run", flaky_run)
+    exporter.stream_thread.start()
+    exporter.stream_thread.join(5)
+
+    assert len(runs) == 2
+    assert not exporter.stream_thread.is_alive()

@@ -43,9 +43,9 @@ class StreamSettings:
     # Prefect Cloud ends every websocket at 600 seconds, so the socket is
     # replaced before then.
     replace_after: float = 540.0
-    # A replacement socket that has delivered no event counts as delivering
-    # once it has stayed open this long. Prefect Cloud's last follow-up
-    # backfill runs 20 seconds after connect.
+    # A socket that has delivered no event counts as delivering once it has
+    # stayed open this long. Prefect Cloud re-checks for late events shortly
+    # after connect, and this waits past that.
     delivering_grace: float = 30.0
     immediate_retries: int = 2
     backoff_initial: float = 1.0
@@ -53,10 +53,16 @@ class StreamSettings:
     refusal_retry: float = 300.0
     backfill_failures_before_fallback: int = 3
     open_timeout: float = 20.0
+    # Added to the refusal log, such as the scope a Prefect Cloud key needs.
+    refusal_hint: str = ""
 
 
 class Refused(Exception):
     """The server refused the subscription."""
+
+    def __init__(self, detail: str, handshake_status: Optional[int] = None) -> None:
+        super().__init__(detail)
+        self.handshake_status = handshake_status
 
 
 class SubscribeFailed(Exception):
@@ -139,6 +145,8 @@ class EventStream:
         self.disconnected_since: Optional[float] = None
         self.backfill_failures = 0
         self.failed_attempts = 0
+        self.replacement_failures = 0
+        self.first_connect = True
         self.open_subscriptions: set[Subscription] = set()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._stop: Optional[asyncio.Event] = None
@@ -176,40 +184,80 @@ class EventStream:
                 "terminal states will be counted"
             )
 
-        first_connect = True
         current: Optional[Subscription] = None
         try:
             while not self._stop.is_set():
-                if current is None:
-                    backfill = (
-                        not first_connect
-                        and self.backfill_failures
-                        < self.settings.backfill_failures_before_fallback
+                try:
+                    current = await self._step(current)
+                except Exception:
+                    # A bug or an unexpected reply must not end the stream; drop
+                    # the subscription and reconnect with backoff.
+                    self.logger.exception("Event stream failed; reconnecting")
+                    if current is not None:
+                        self._note_disconnected(current.last_alive)
+                        await current.close("error")
+                        self.open_subscriptions.discard(current)
+                        self._update_connected()
+                        current = None
+                    self.health.reconnects.labels("error").inc()
+                    self.failed_attempts += 1
+                    await self._sleep(
+                        max(
+                            self.settings.backoff_initial,
+                            self._backoff(self.failed_attempts),
+                        )
                     )
-                    current = await self._connect(backfill)
-                    if current is None:
-                        continue
-                    first_connect = False
-                    if not backfill:
-                        self.backfill_failures = 0
-
-                await self._wait_for_end_or_replacement(current)
-                if self._stop.is_set():
-                    break
-                if current.end_kind is None:
-                    replacement = await self._replace(current)
-                    if replacement is not None:
-                        current = replacement
-                        continue
-                    if current.end_kind is None:
-                        continue
-
-                await self._after_unplanned_end(current)
-                current = None
         finally:
             for subscription in list(self.open_subscriptions):
                 await subscription.close("stopped")
             self._update_connected()
+
+    def _wants_backfill(self) -> bool:
+        return self.backfill_failures < self.settings.backfill_failures_before_fallback
+
+    async def _step(self, current: Optional[Subscription]) -> Optional[Subscription]:
+        """
+        Advance the subscription by one event: open one, replace it, or handle
+        its end. Returns the subscription to hold next, or None.
+        """
+        if current is None:
+            backfill = not self.first_connect and self._wants_backfill()
+            current = await self._connect(backfill)
+            if current is None:
+                return None
+            self.first_connect = False
+            if not backfill:
+                self.backfill_failures = 0
+
+        await self._wait_for_end_or_replacement(current)
+        if self._stop.is_set():
+            return current
+        if current.end_kind is None:
+            replacement = await self._replace(current)
+            if replacement is not None:
+                return replacement
+            if current.end_kind is None:
+                return current
+
+        await self._after_unplanned_end(current)
+        return None
+
+    def _log_refusal(self, detail) -> None:
+        if getattr(detail, "handshake_status", None) == 404:
+            self.logger.error(
+                "The event stream endpoint %s was not found (wrong URL or old "
+                "server); retrying in %.0f seconds",
+                self.url,
+                self.settings.refusal_retry,
+            )
+            return
+        self.logger.error(
+            "The server refused the event stream subscription (%s); retrying in "
+            "%.0f seconds. %s",
+            detail,
+            self.settings.refusal_retry,
+            self.settings.refusal_hint,
+        )
 
     async def _connect(self, backfill: bool) -> Optional[Subscription]:
         attempt_started = self.wall()
@@ -219,12 +267,7 @@ class EventStream:
             self._note_disconnected(attempt_started)
             self.health.refused.set(1)
             self.health.reconnects.labels("server_close").inc()
-            self.logger.error(
-                "The server refused the event stream subscription (%s); retrying "
-                "in %.0f seconds. The API key needs the see_events scope.",
-                refusal,
-                self.settings.refusal_retry,
-            )
+            self._log_refusal(refusal)
             await self._sleep(self.settings.refusal_retry)
         except SubscribeFailed as failure:
             self._note_disconnected(attempt_started)
@@ -266,20 +309,27 @@ class EventStream:
                 handshake_status=status,
                 auth_failed=False,
                 close_code=None,
-                saw_event=False,
+                delivered=False,
                 asked_for_backfill=backfill,
             )
             if kind == "refused":
-                raise Refused(f"handshake status {status}") from err
+                raise Refused(f"handshake status {status}", status) from err
             raise SubscribeFailed("error", f"handshake status {status}") from err
         except (OSError, TimeoutError, WebSocketException) as err:
             raise SubscribeFailed("error", repr(err)) from err
 
         try:
             await ws.send(auth_message(self.settings.token))
-            reply = json.loads(
-                await asyncio.wait_for(ws.recv(), self.settings.open_timeout)
-            )
+            raw_reply = await asyncio.wait_for(ws.recv(), self.settings.open_timeout)
+            try:
+                reply = json.loads(raw_reply)
+            except ValueError:
+                reply = None
+            if not isinstance(reply, dict):
+                await ws.close()
+                raise SubscribeFailed(
+                    "error", f"unexpected reply to the auth message: {raw_reply!r:.200}"
+                )
             if reply.get("type") != "auth_success":
                 await ws.close()
                 raise Refused(reply.get("reason") or reply.get("type"))
@@ -289,7 +339,7 @@ class EventStream:
                 handshake_status=None,
                 auth_failed=False,
                 close_code=err.rcvd.code if err.rcvd else None,
-                saw_event=False,
+                delivered=False,
                 asked_for_backfill=False,
             )
             if kind == "refused":
@@ -323,9 +373,18 @@ class EventStream:
         ws = subscription.ws
         try:
             async for raw in ws:
-                message = json.loads(raw)
-                if message.get("type") == "event":
-                    self._handle_event(subscription, message["event"])
+                try:
+                    message = json.loads(raw)
+                    if message.get("type") == "event":
+                        self._handle_event(subscription, message["event"])
+                except Exception:
+                    # One bad message must not end the subscription.
+                    self.logger.exception(
+                        "Skipping an event stream message that could not be "
+                        "handled: %.200r",
+                        raw,
+                    )
+                    self.health.events.labels("malformed").inc()
         except ConnectionClosed:
             pass
         finally:
@@ -336,7 +395,7 @@ class EventStream:
                     close_code=(
                         ws.protocol.close_rcvd.code if ws.protocol.close_rcvd else None
                     ),
-                    saw_event=subscription.saw_event,
+                    delivered=subscription.delivering.is_set(),
                     asked_for_backfill=subscription.backfill,
                 )
             )
@@ -361,6 +420,10 @@ class EventStream:
                 subscription.last_alive = self.wall()
         except ConnectionClosed:
             return
+        except Exception:
+            self.logger.exception("Event stream keepalive failed")
+            subscription.end("error")
+            subscription.ws.transport.abort()
 
     async def _grace(self, subscription: Subscription) -> None:
         await asyncio.sleep(self.settings.delivering_grace)
@@ -372,18 +435,31 @@ class EventStream:
         subscription.last_alive = now
         self._mark_delivering(subscription)
         self.health.last_event_timestamp.set(now)
-        occurred = event.get("occurred")
-        if occurred:
-            try:
-                self.cursor = datetime.fromisoformat(occurred)
-            except ValueError:
-                self.logger.warning("Event with unparseable occurred %r", occurred)
 
         classification = self.classifier.classify(event)
         self.metrics.record(classification)
         self.health.events.labels(classification.outcome).inc()
         if classification.missing_run_count:
             self.health.events.labels("missing_run_count").inc()
+        self._advance_cursor(event.get("occurred"), now)
+
+    def _advance_cursor(self, occurred, now: float) -> None:
+        """
+        Move the backfill cursor to an event's `occurred`, after the event was
+        handled, so an event that cannot be handled is replayed rather than
+        skipped. A time ahead of the clock is clamped to now, so the next
+        backfill does not start in the future.
+        """
+        if not occurred:
+            return
+        try:
+            when = datetime.fromisoformat(occurred)
+        except (TypeError, ValueError):
+            self.logger.warning("Event with unparseable occurred %r", occurred)
+            return
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        self.cursor = min(when, datetime.fromtimestamp(now, timezone.utc))
 
     def _mark_delivering(self, subscription: Subscription) -> None:
         if subscription.delivering.is_set() or subscription.end_kind is not None:
@@ -453,11 +529,7 @@ class EventStream:
             self.health.refused.set(1)
             self.health.reconnects.labels("server_close").inc()
             self._note_disconnected(subscription.connected_at)
-            self.logger.error(
-                "The server refused the event stream subscription; retrying in "
-                "%.0f seconds",
-                self.settings.refusal_retry,
-            )
+            self._log_refusal(subscription.ws.close_reason or "closed")
             await self._sleep(self.settings.refusal_retry)
             return
         else:
@@ -473,15 +545,17 @@ class EventStream:
 
     async def _replace(self, current: Subscription) -> Optional[Subscription]:
         """
-        Open a new subscription with backfill beside `current`, and close
-        `current` once the new one is delivering.
+        Open a new subscription beside `current`, with backfill unless the
+        fallback threshold was reached, and close `current` once the new one is
+        delivering.
 
         Returns:
             Subscription: The new subscription, or None if it failed; then
             `current` is kept and the replacement is tried again later.
         """
+        backfill = self._wants_backfill()
         try:
-            replacement = await self._subscribe(backfill=True)
+            replacement = await self._subscribe(backfill=backfill)
         except (Refused, SubscribeFailed) as err:
             self.logger.warning("Event stream replacement failed to connect: %s", err)
             self._retry_replacement_later(current)
@@ -508,12 +582,18 @@ class EventStream:
             self._retry_replacement_later(current)
             return None
 
+        if not backfill:
+            self.backfill_failures = 0
+        self.replacement_failures = 0
         await current.close("replaced")
         self.open_subscriptions.discard(current)
         self._update_connected()
         return replacement
 
     def _retry_replacement_later(self, current: Subscription) -> None:
-        current.replace_due = asyncio.get_running_loop().time() + max(
-            self.settings.backoff_initial, self._backoff(self.failed_attempts + 3)
+        self.replacement_failures += 1
+        delay = max(
+            self.settings.backoff_initial,
+            self._backoff(self.settings.immediate_retries + self.replacement_failures),
         )
+        current.replace_due = asyncio.get_running_loop().time() + delay

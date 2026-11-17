@@ -38,7 +38,7 @@ class ExporterHealth:
 
 
 RECONNECT_REASONS = ("server_close", "ping_timeout", "error")
-EVENT_OUTCOMES = ("counted", "duplicate", "ignored", "missing_run_count")
+EVENT_OUTCOMES = ("counted", "duplicate", "ignored", "malformed", "missing_run_count")
 
 
 class StreamHealth:
@@ -84,7 +84,8 @@ class StreamHealth:
         )
         self.events = Counter(
             "prefect_exporter_stream_events",
-            "Events received, by outcome",
+            "Events received, by outcome: counted, duplicate, ignored or malformed. "
+            "missing_run_count is counted in addition to the event's outcome.",
             ["outcome"],
             registry=registry,
         )
