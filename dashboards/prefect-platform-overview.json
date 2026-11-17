@@ -224,14 +224,14 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "count(prefect_info_flow_runs)",
+          "expr": "sum(increase(prefect_flow_runs_terminal_total[$__range]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Flow Runs total",
+      "title": "Flow Runs finished",
       "type": "stat"
     },
     {
@@ -290,7 +290,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(prefect_info_flow_runs == 1)",
+          "expr": "sum(prefect_flow_runs_current{state_type=\"RUNNING\"})",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -487,14 +487,14 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "count by (state_name) (prefect_info_flow_runs)",
+          "expr": "sum by (state_name) (increase(prefect_flow_runs_terminal_total[$__range]))",
           "instant": false,
           "legendFormat": "{{label_name}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Flow Runs by state",
+      "title": "Flow Runs finished by state",
       "type": "piechart"
     },
     {
@@ -687,7 +687,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "avg(prefect_flow_runs_total_run_time)",
+          "expr": "sum(rate(prefect_flow_run_duration_seconds_sum[$__range])) / sum(rate(prefect_flow_run_duration_seconds_count[$__range]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -3622,7 +3622,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "prefect_info_flow_runs{state_name=~\"$flow_run_state_name\", flow_name=~\"$flow_name\"}",
+              "expr": "prefect_flow_runs_current{state_name=~\"$flow_run_state_name\", flow_name=~\"$flow_name\"}",
               "format": "table",
               "instant": true,
               "legendFormat": "",
@@ -3674,7 +3674,7 @@
                   "job": 13,
                   "namespace": 14,
                   "pod": 15,
-                  "prefect_info_flow_runs": 23,
+                  "prefect_flow_runs_current": 23,
                   "run_count": 2,
                   "service": 16,
                   "start_time": 19,
@@ -3685,7 +3685,7 @@
                 "renameByName": {
                   "is_schedule_active": "scheduled",
                   "job": "",
-                  "prefect_info_flow_runs": "state",
+                  "prefect_flow_runs_current": "state",
                   "run_count": "runs",
                   "start_time": "",
                   "state_name": "state",
@@ -4137,7 +4137,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(prefect_info_flow_runs,state_name)",
+        "definition": "label_values(prefect_flow_runs_current,state_name)",
         "hide": 0,
         "includeAll": true,
         "label": "Flow Run State",
@@ -4145,7 +4145,7 @@
         "name": "flow_run_state_name",
         "options": [],
         "query": {
-          "query": "label_values(prefect_info_flow_runs,state_name)",
+          "query": "label_values(prefect_flow_runs_current,state_name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,

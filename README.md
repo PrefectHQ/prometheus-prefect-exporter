@@ -6,26 +6,82 @@ A Prometheus exporter for [Prefect](https://www.prefect.io/) metrics, written in
 
 By default `prometheus-prefect-exporter` will listen on port `8000`.
 
-While the [default scrape interval](https://prometheus.io/docs/instrumenting/writing_exporters/#scheduling)
-in Prometheus is 10 seconds, we recommend a longer interval:
+A scrape reads values the exporter has already stored and sends no request to the Prefect API, so any
+scrape interval works. The exporter reads Prefect on its own schedule:
 
-- High-frequency environments: 30s
-- Standard monitoring: 60s
-- Low-change environments: 120s
+- Flow-run terminal states (completed, failed, crashed, cancelled) arrive as they happen, from the
+  Prefect event stream (`/events/out`), and are counted in `prefect_flow_runs_terminal_total`.
+- Runs that have not finished are polled every 60 seconds (`RUN_POLL_INTERVAL_SECONDS`).
+- Deployments, flows, work pools, work queues and recent failed runs are polled every 5 minutes
+  (`INVENTORY_POLL_INTERVAL_SECONDS`).
 
-The exporter performs several endpoints, and certain endpoints may use pagination and therefore require
-multiple API calls. A longer scrape interval ensures that the exporter does not overwhelm the Prefect API
-server and create unnecessary load.
+Upgrading from version 4? Read the [migration note](./docs/migrating-to-5.md): three flow-run metrics
+were replaced.
+
+### Requirements
+
+- **Run exactly one exporter per Prefect workspace or server.** Each exporter counts the events it
+  receives, so two exporters each count every run, and no query combines them correctly. A
+  Kubernetes Deployment of the exporter needs one replica and the `Recreate` strategy, because the
+  default `RollingUpdate` runs the old and new pods together and both count the overlap. The Helm
+  chart sets both.
+- **The API key needs the `see_events` scope** on Prefect Cloud, to read the event stream.
+- **Give the exporter a stable `instance` label.** A replaced exporter pod is otherwise a new series,
+  and `increase()` reads each series' first count as zero. The Helm chart's ServiceMonitor sets
+  `instance` to the release name and drops `pod`. For a hand-written scrape config:
+
+  ```yaml
+  scrape_configs:
+    - job_name: prefect
+      static_configs:
+        - targets: ["prometheus-prefect-exporter:8000"]
+      relabel_configs:
+        - target_label: instance
+          replacement: prometheus-prefect-exporter
+  ```
+- **A self-hosted Prefect server with more than one API replica needs the Redis message broker**
+  (`prefect-redis`). With the default in-memory broker, the event stream only carries the events
+  published on the replica the exporter's socket reached.
+
+### What the counts include and miss
+
+`prefect_flow_runs_terminal_total` counts each terminal state a flow run attempt enters, once. An
+attempt is a flow run and its run count, which Prefect raises each time the run enters `Running`. A
+run that failed and then completed after a manual retry counts once in each state. The Prefect UI
+shows one row per run in its current state instead, so its numbers differ.
+
+The exporter reports what it can see of its own completeness:
+
+- `prefect_exporter_stream_gap_seconds_total` rises when the event stream was disconnected for longer
+  than the server replays on reconnect (2 minutes on Prefect Cloud, 15 on a self-hosted server).
+  Terminal states in that time may be missing.
+- `prefect_exporter_stream_refused` is 1 while the server refuses the subscription, or while a
+  self-hosted server has its outbound event stream disabled.
+- A restarted exporter starts its counters at zero and does not replay earlier events, so nothing is
+  counted twice; runs that ended while it was down are not counted.
+
+It cannot see these losses:
+
+- A self-hosted server drops events silently when an exporter's socket falls 256 events behind.
+- A self-hosted server writes events to its database every 5 seconds by default, and replays only
+  what it has written, so events in the last few seconds before an unplanned reconnect can be missed.
+- A copy of a terminal event that arrives more than `DUPLICATE_MEMORY_HOURS` after the first copy, or
+  after a restart, counts again.
+
+`state_name` is text that flow code can set, so its number of values, and the counter's number of
+series, depends on your flows.
 
 ### Installing released versions
 
 **Docker**
 
+Pin a release tag. `latest` moves to each new major version, whose metrics can change.
+
 ```bash
 docker run -d \
   -p 8000:8000 \
   -e PREFECT_API_URL=<PREFECT_ENDPOINT> \
-  prefecthq/prometheus-prefect-exporter:latest
+  prefecthq/prometheus-prefect-exporter:<VERSION>
 ```
 
 **Helm**
@@ -111,17 +167,56 @@ You can modify environment variables to change the behavior of the exporter.
 | `MAX_RETRIES` | Number of retries to attempt when fetching metrics from Prefect API | `3` |
 | `METRICS_ADDR` | Address to expose metrics on | `0.0.0.0` |
 | `METRICS_PORT` | Port to expose metrics on | `8000` |
-| `OFFSET_MINUTES` | Number of minutes to offset the start time when fetching metrics from Prefect API | `5` |
 | `PREFECT_API_URL` | Prefect API URL | `https://localhost:4200/api` |
 | `PREFECT_API_KEY` | Prefect API key (Optional) | `""` |
 | `PREFECT_API_AUTH_STRING` | Prefect API auth string, automatically base64-encoded (Optional) | `""` |
 | `PREFECT_CSRF_ENABLED` | Enable compatibilty with Prefect Servers using CSRF protection | `False` |
 | `PAGINATION_ENABLED` | Enable pagination for API requests. Can help reduce server load and avoid timeouts. Can be disabled on very small instances. | `True` |
 | `PAGINATION_LIMIT` | Number of results to retrieve per request when pagination is enabled. Consider lowering this value for large instances to make more, but smaller, requests. | `200` |
-| `FAILED_RUNS_OFFSET_MINUTES` | Time window in minutes for the `prefect_deployment_failed_flow_runs` metric. Failed runs older than this window are ignored. Set to `0` to disable the metric entirely. | `10080` (7 days) |
+| `FAILED_RUNS_OFFSET_MINUTES` | Time window in minutes for the `prefect_deployment_failed_flow_runs` metric, read on the inventory poll. Failed runs older than this window are ignored. Set to `0` to disable the metric entirely. | `10080` (7 days) |
 | `FAILED_RUNS_LIMIT` | Maximum number of recent failed runs to expose per deployment in `prefect_deployment_failed_flow_runs`. | `10` |
-| `ENABLE_FLOW_RUN_NAME_LABEL` | Add `flow_run_name` label to `prefect_info_flow_runs` and `prefect_flow_runs_ongoing_run_time`. Increases cardinality proportional to the number of concurrent flow runs within the `OFFSET_MINUTES` window, not total historical runs. Series go stale once runs fall outside the window. Note: `prefect_flow_runs_ongoing_run_time` always carries a `flow_run_id` label so each ongoing run is a distinct series (cardinality bounded by the number of concurrent ongoing runs, which is self-expiring). | `False` |
+| `ENABLE_FLOW_RUN_NAME_LABEL` | Add `flow_run_name` label to `prefect_flow_runs_current` and `prefect_flow_runs_ongoing_run_time`. Increases cardinality in proportion to the number of runs that have not finished. Note: `prefect_flow_runs_ongoing_run_time` always carries a `flow_run_id` label so each ongoing run is a distinct series. | `False` |
+| `INVENTORY_POLL_INTERVAL_SECONDS` | Seconds between polls of deployments, flows, work pools, work queues and recent failed runs. | `300` |
+| `RUN_POLL_INTERVAL_SECONDS` | Seconds between polls of the runs that have not finished. | `60` |
+| `DUPLICATE_MEMORY_HOURS` | How long a counted terminal state is remembered, so later copies of its event are not counted again. | `24` |
+| `STREAM_BACKFILL_WINDOW_SECONDS` | The longest replay the server gives on reconnect, used to compute `prefect_exporter_stream_gap_seconds_total`. Set it if your server's `PREFECT_SERVER_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL` is not the default. | `120` on Prefect Cloud, `900` otherwise |
 | `REQUEST_TIMEOUT_SECONDS` | Timeout in seconds for connecting to the Prefect API and for each read from it. Timed-out requests are retried up to `MAX_RETRIES`. | `60` |
+
+## Metrics
+
+Flow runs:
+
+| Metric | Type | Labels | Meaning |
+| --- | --- | --- | --- |
+| `prefect_flow_runs_terminal_total` | counter | `deployment_name`, `flow_name`, `work_pool_name`, `work_queue_name`, `state_type`, `state_name` | Terminal states entered by flow run attempts, each counted once per attempt and state type. Series for each deployment and its common state names exist at zero from the first inventory poll. |
+| `prefect_flow_run_duration_seconds` | histogram | `deployment_name`, `flow_name`, `state_type` | Time an attempt spent running before its terminal state, for attempts that left `Running`. |
+| `prefect_flow_runs_current` | gauge | `deployment_name`, `flow_name`, `work_queue_name`, `state_type`, `state_name` (`flow_run_name`) | Runs in each state that has not finished. Scheduled runs count once their expected start time has passed. |
+| `prefect_flow_runs_ongoing_run_time` | gauge | `deployment_name`, `flow_name`, `state_name`, `flow_run_id`, `work_queue_name` (`flow_run_name`) | Seconds since each running, pending or late run started, or was expected to start. |
+| `prefect_deployment_failed_flow_runs` | gauge | `deployment_name`, `flow_name`, `last_failed_run_id`, `state_name` | The most recent failed or crashed runs of each deployment. |
+
+The inventory metrics (`prefect_deployments_total`, `prefect_info_deployment`, `prefect_flows_total`,
+`prefect_info_flows`, `prefect_work_pools_total`, `prefect_info_work_pools`, `prefect_work_queues_total`,
+`prefect_info_work_queues` and `prefect_work_queues_late_runs_count`) keep their names and labels.
+
+The exporter's health:
+
+| Metric | Type | Meaning |
+| --- | --- | --- |
+| `prefect_exporter_stream_connected` | gauge | 1 while the event stream socket is open and answering pings |
+| `prefect_exporter_stream_refused` | gauge | 1 while the server refuses the subscription or has its event stream disabled |
+| `prefect_exporter_stream_last_event_timestamp_seconds` | gauge | When the last event arrived |
+| `prefect_exporter_stream_reconnects_total` | counter | Reconnects, by `reason` (`server_close`, `ping_timeout`, `error`) |
+| `prefect_exporter_stream_disconnected_seconds_total` | counter | Time without a subscription |
+| `prefect_exporter_stream_gap_seconds_total` | counter | Disconnected time that the server's replay did not cover |
+| `prefect_exporter_stream_backfill_failures_total` | counter | Connects that the server closed while replaying events |
+| `prefect_exporter_stream_events_total` | counter | Events, by `outcome` (`counted`, `duplicate`, `ignored`, `missing_run_count`) |
+| `prefect_exporter_poll_success` | gauge | 1 if the last poll of each `poller` read everything it asked for |
+| `prefect_exporter_poll_duration_seconds` | histogram | Poll duration, by `poller` |
+| `prefect_exporter_api_errors_total` | counter | Failed API requests, by `endpoint` and `status` |
+| `prefect_exporter_poll_truncated_total` | counter | Listings whose pagination stopped before the last page, by `endpoint` |
+
+The socket cannot tell a stalled stream from a quiet workspace: the server sends nothing while there
+are no events.
 
 ## Contributing
 
@@ -135,6 +230,16 @@ mise install
 
 Be sure to run `pre-commit install` before starting any development. [`pre-commit`](https://pre-commit.com/)
 will help catch simple issues before committing.
+
+`pytest` runs the unit tests. The integration tests run the exporter against a Prefect server:
+
+```shell
+docker compose -f compose.yml -f tests/integration/compose.override.yml up -d --wait prefect
+PREFECT_INTEGRATION_API_URL=http://localhost:4200/api pytest -m integration
+```
+
+`tests/integration/compose.ha.yml` starts two API replicas on the Redis broker instead; point
+`PREFECT_INTEGRATION_API_URL` at `http://localhost:4280/api`.
 
 ### Documentation
 
