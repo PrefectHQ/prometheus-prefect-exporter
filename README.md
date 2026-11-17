@@ -23,12 +23,15 @@ were replaced.
 - **Run exactly one exporter per Prefect workspace or server.** Each exporter counts the events it
   receives, so two exporters each count every run, and no query combines them correctly. A
   Kubernetes Deployment of the exporter needs one replica and the `Recreate` strategy, because the
-  default `RollingUpdate` runs the old and new pods together and both count the overlap. The Helm
-  chart sets both.
+  default `RollingUpdate` runs the old and new pods together and both count the overlap. Set
+  `replicas: 1` and `strategy: {type: Recreate}` on the Deployment. The Helm chart sets both from the
+  chart release that pairs with exporter version 5; on an older chart, set them yourself.
 - **The API key needs the `see_events` scope** on Prefect Cloud, to read the event stream.
 - **Give the exporter a stable `instance` label.** A replaced exporter pod is otherwise a new series,
-  and `increase()` reads each series' first count as zero. The Helm chart's ServiceMonitor sets
-  `instance` to the release name and drops `pod`. For a hand-written scrape config:
+  and `increase()` reads each series' first count as zero. Set `instance` to a fixed value and drop
+  the `pod` label. The Helm chart's ServiceMonitor does this from the chart release that pairs with
+  exporter version 5; with an older chart, add the two rules to `serviceMonitor.relabelings`. For a
+  hand-written scrape config:
 
   ```yaml
   scrape_configs:

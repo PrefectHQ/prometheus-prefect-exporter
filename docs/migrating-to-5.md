@@ -15,10 +15,13 @@ The new metrics are described in the [README](../README.md#metrics).
 ## Before you upgrade
 
 - On Prefect Cloud, give the exporter's API key the `see_events` scope.
-- Run one exporter per workspace or server, with the `Recreate` strategy on Kubernetes. Two
-  exporters, or two pods during a rolling update, each count every run.
-- Give the exporter's scrape target a stable `instance` label, so a replaced pod continues the same
-  series. The README has a scrape config, and the Helm chart's ServiceMonitor does this.
+- Run one exporter per workspace or server: on Kubernetes, one replica with the `Recreate` strategy.
+  Two exporters, or two pods during a rolling update, each count every run.
+- Give the exporter's scrape target a stable `instance` label and drop the `pod` label, so a
+  replaced pod continues the same series. The README has a scrape config.
+- If you install with the Helm chart, upgrade to the chart release that pairs with exporter version
+  5. It runs one replica with `Recreate` and sets the ServiceMonitor relabeling. An older chart does
+  neither, so set them yourself or wait for that chart release.
 - A self-hosted server with more than one API replica needs the Redis message broker.
 
 ## Replacement queries
