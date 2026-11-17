@@ -5,7 +5,8 @@
 #   docker compose -f tests/integration/compose.ha.yml up -d --wait
 #   PREFECT_INTEGRATION_API_URL=http://localhost:4280/api pytest -m integration
 x-prefect: &prefect
-  image: prefecthq/prefect:3-latest
+  # The Prefect release the integration tests were last run against.
+  image: prefecthq/prefect:3.9.0-python3.12
   environment: &prefect-environment
     EXTRA_PIP_PACKAGES: prefect-redis
     PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
