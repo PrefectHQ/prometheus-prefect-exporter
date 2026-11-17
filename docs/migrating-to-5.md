@@ -51,7 +51,7 @@ expr: sum by (flow_name, deployment_name, state_name, namespace) (increase(prefe
 ```
 
 The new alert no longer names the run, because the terminal counter has no per-run label.
-`prefect_deployment_failed_flow_runs` still carries `last_failed_run_id` for each deployment.
+`prefect_deployment_failed_flow_runs` still has `last_failed_run_id` for each deployment.
 
 ## Counts that differ from the Prefect UI
 

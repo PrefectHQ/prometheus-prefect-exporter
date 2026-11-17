@@ -25,8 +25,8 @@ def _run_events(name):
 def _cloud_shaped(event):
     """
     The same event as Prefect Cloud builds it: the prior state in the payload
-    carries its timestamp and id, the resource carries `prefect.audit`, and an
-    actor may be related.
+    has its timestamp and id, the resource has `prefect.audit`, and an actor
+    may be related.
     """
     event = copy.deepcopy(event)
     event["resource"]["prefect.audit"] = "false"

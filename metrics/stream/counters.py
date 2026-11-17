@@ -12,8 +12,8 @@ TERMINAL_LABELS = (
 )
 
 # The (state type, state name) pairs whose counter series exist at zero for
-# every deployment and every flow without one, so increase() sees their first
-# count. Custom state names start at their first count instead.
+# every deployment and every flow without one, so increase() includes their
+# first count. Custom state names start at their first count instead.
 PRECREATED_STATES = (
     ("COMPLETED", "Completed"),
     ("COMPLETED", "Cached"),

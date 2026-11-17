@@ -31,8 +31,8 @@ class PrefectFlowRuns(PrefectApiMetric):
         where the server has it, else "flow_runs/filter".
 
         The minimal route omits each run's full state object, which the
-        exporter does not read. Open-source servers do not have it. One probe
-        decides for the life of this object; a probe that fails for any other
+        exporter does not read. Open-source servers do not have it. The result of
+        one probe is kept for the life of this object; a probe that fails for any other
         reason falls back to the full route, which every server has.
         """
         if self.filter_minimal_supported is None:

@@ -40,7 +40,7 @@ were replaced.
           replacement: prometheus-prefect-exporter
   ```
 - **A self-hosted Prefect server with more than one API replica needs the Redis message broker**
-  (`prefect-redis`). With the default in-memory broker, the event stream only carries the events
+  (`prefect-redis`). With the default in-memory broker, the event stream only sends the events
   published on the replica the exporter's socket reached.
 
 ### What the counts include and miss
@@ -175,7 +175,7 @@ You can modify environment variables to change the behavior of the exporter.
 | `PAGINATION_LIMIT` | Number of results to retrieve per request when pagination is enabled. Consider lowering this value for large instances to make more, but smaller, requests. | `200` |
 | `FAILED_RUNS_OFFSET_MINUTES` | Time window in minutes for the `prefect_deployment_failed_flow_runs` metric, read on the inventory poll. Failed runs older than this window are ignored. Set to `0` to disable the metric entirely. | `10080` (7 days) |
 | `FAILED_RUNS_LIMIT` | Maximum number of recent failed runs to expose per deployment in `prefect_deployment_failed_flow_runs`. | `10` |
-| `ENABLE_FLOW_RUN_NAME_LABEL` | Add `flow_run_name` label to `prefect_flow_runs_current` and `prefect_flow_runs_ongoing_run_time`. Increases cardinality in proportion to the number of runs that have not finished. Note: `prefect_flow_runs_ongoing_run_time` always carries a `flow_run_id` label so each ongoing run is a distinct series. | `False` |
+| `ENABLE_FLOW_RUN_NAME_LABEL` | Add `flow_run_name` label to `prefect_flow_runs_current` and `prefect_flow_runs_ongoing_run_time`. Increases cardinality in proportion to the number of runs that have not finished. Note: `prefect_flow_runs_ongoing_run_time` always has a `flow_run_id` label so each ongoing run is a distinct series. | `False` |
 | `INVENTORY_POLL_INTERVAL_SECONDS` | Seconds between polls of deployments, flows, work pools, work queues and recent failed runs. | `300` |
 | `RUN_POLL_INTERVAL_SECONDS` | Seconds between polls of the runs that have not finished. | `60` |
 | `DUPLICATE_MEMORY_HOURS` | How long a counted terminal state is remembered, so later copies of its event are not counted again. | `24` |
