@@ -5,6 +5,7 @@ from typing import Optional
 import requests
 from prometheus_client import CollectorRegistry
 
+from metrics.csrf import CsrfSession, CsrfToken
 from metrics.health import ExporterHealth
 from metrics.retry_after import detect_retry_after, log_retry_after
 
@@ -43,6 +44,9 @@ class PrefectApiMetric:
     # items between pages.
     default_sort: Optional[str] = None
 
+    # The resource's path below the API URL, set by each subclass.
+    uri: str = ""
+
     def __init__(
         self,
         url,
@@ -51,9 +55,10 @@ class PrefectApiMetric:
         logger,
         enable_pagination,
         pagination_limit,
-        uri,
         timeout,
+        uri: Optional[str] = None,
         health: Optional[ExporterHealth] = None,
+        csrf: Optional[CsrfSession] = None,
     ) -> None:
         """
         Initialize the PrefectApiMetric instance.
@@ -65,13 +70,20 @@ class PrefectApiMetric:
             logger (obj): The logger object.
             enable_pagination (bool): Whether to use pagination or not.
             pagination_limit (int): The limit for pagination.
-            uri (str): The URI path for the intended endpoint.
             timeout (float): Timeout in seconds for each HTTP request.
+            uri (str, optional): The resource's path below the API URL.
+                Defaults to the subclass's `uri`.
             health (ExporterHealth, optional): Where API errors and truncated
                 listings are counted. Defaults to a private registry.
+            csrf (CsrfSession, optional): Adds CSRF headers to each request.
         """
         self.headers = headers
-        self.uri = uri
+        if uri is not None:
+            self.uri = uri
+        self.csrf = csrf
+        # Requests that returned None, for pollers to tell a clean poll from
+        # one that lost data.
+        self.failed_requests = 0
         self.url = url
         self.max_retries = max_retries
         self.logger = logger
@@ -107,13 +119,16 @@ class PrefectApiMetric:
             the server sent Retry-After.
         """
         url = f"{self.url}/{path}"
+        headers = self.headers
+        if self.csrf is not None:
+            headers = {**headers, **self.csrf.headers()}
         attempts = attempts or self.max_retries
         for retry in range(attempts):
             try:
                 resp = _session().request(
                     method,
                     url,
-                    headers=self.headers,
+                    headers=headers,
                     json=data,
                     timeout=self.timeout,
                 )
@@ -126,16 +141,31 @@ class PrefectApiMetric:
                 signal = detect_retry_after(err.response)
                 if signal is not None:
                     log_retry_after(self.logger, url, signal)
+                    self.failed_requests += 1
                     return None
                 self.logger.error(err)
                 if retry < attempts - 1:
                     time.sleep(2**retry)
 
         self.logger.error("Max retries reached for %s", url)
+        self.failed_requests += 1
         return None
 
     def _post(self, path: str, data: dict, **kwargs) -> Optional[requests.Response]:
         return self._request("POST", path, f"/{path}", data, **kwargs)
+
+    def _get(self, path: str, endpoint: str) -> Optional[requests.Response]:
+        return self._request("GET", path, endpoint)
+
+    def get_csrf_token(self, client_id: str) -> Optional[CsrfToken]:
+        """
+        Request a CSRF token for `client_id`.
+
+        Returns:
+            CsrfToken: The token, or None if the request failed.
+        """
+        resp = self._get(f"csrf-token?client={client_id}", "/csrf-token")
+        return None if resp is None else CsrfToken.from_response(resp.json())
 
     def _get_with_pagination(
         self, base_data: Optional[dict] = None, path: Optional[str] = None

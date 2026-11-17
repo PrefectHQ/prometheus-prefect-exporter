@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,6 +16,7 @@ from metrics.work_pools import PrefectWorkPools
 from metrics.work_queues import PrefectWorkQueues
 
 URL = "http://prefect.test/api"
+NOW = datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)
 
 
 @pytest.fixture(autouse=True)
@@ -169,13 +171,13 @@ def test_flow_runs_fall_back_to_filter_when_filter_minimal_is_missing(registry):
     responses.add(responses.POST, f"{URL}/flow_runs/filter-minimal", status=404)
     responses.add(responses.POST, f"{URL}/flow_runs/filter", json=[])
 
-    flow_runs = PrefectFlowRuns(**_kwargs(registry), offset_minutes=3)
-    flow_runs.get_all_flow_runs_info()
-    flow_runs.get_ongoing_flow_runs_info()
+    flow_runs = PrefectFlowRuns(**_kwargs(registry))
+    flow_runs.get_current_flow_runs(NOW)
+    flow_runs.get_current_flow_runs(NOW)
 
     urls = [call.request.url for call in responses.calls]
     assert urls.count(f"{URL}/flow_runs/filter-minimal") == 1
-    assert urls.count(f"{URL}/flow_runs/filter") == 2
+    assert urls.count(f"{URL}/flow_runs/filter") == 10
     assert (
         _sample(
             registry,
@@ -191,7 +193,7 @@ def test_flow_runs_fall_back_to_filter_when_filter_minimal_is_missing(registry):
 def test_flow_runs_list_through_filter_minimal_when_the_server_has_it(registry):
     responses.add(responses.POST, f"{URL}/flow_runs/filter-minimal", json=[])
 
-    PrefectFlowRuns(**_kwargs(registry), offset_minutes=3).get_all_flow_runs_info()
+    PrefectFlowRuns(**_kwargs(registry)).get_current_flow_runs(NOW)
 
     urls = {call.request.url for call in responses.calls}
     assert urls == {f"{URL}/flow_runs/filter-minimal"}
@@ -208,9 +210,7 @@ def test_flow_runs_list_through_filter_minimal_when_the_server_has_it(registry):
         ),
         (lambda kw: PrefectFlows(**kw).get_flows_info(), "flows", "NAME_ASC"),
         (
-            lambda kw: PrefectFlowRuns(
-                **kw, offset_minutes=3
-            ).get_ongoing_flow_runs_info(),
+            lambda kw: PrefectFlowRuns(**kw).get_current_flow_runs(NOW),
             "flow_runs",
             "ID_DESC",
         ),

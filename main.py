@@ -1,113 +1,97 @@
-import os
-import base64
 import logging
+import os
 import threading
 import uuid
 
-from metrics.metrics import PrefectMetrics
+from prometheus_client import REGISTRY, start_http_server
+
+from metrics.api_metric import PrefectApiMetric
+from metrics.collector import PolledMetricsCollector
+from metrics.config import Config
+from metrics.csrf import CsrfSession
+from metrics.health import ExporterHealth
 from metrics.healthz import PrefectHealthz
-from prometheus_client import start_http_server, REGISTRY
+from metrics.inventory import InventoryPoller
+from metrics.poller import PollLoop
+from metrics.run_gauges import RunGaugePoller
 
 
 def metrics():
     """
     Main entry point for the PrefectMetrics exporter.
     """
-
-    # Get environment variables or use default values
-    loglevel = str(os.getenv("LOG_LEVEL", "INFO"))
-    max_retries = int(os.getenv("MAX_RETRIES", "3"))
-    metrics_addr = os.getenv("METRICS_ADDR", "0.0.0.0")
-    metrics_port = int(os.getenv("METRICS_PORT", "8000"))
-    offset_minutes = int(os.getenv("OFFSET_MINUTES", "3"))
-    failed_runs_offset_minutes = int(
-        os.getenv("FAILED_RUNS_OFFSET_MINUTES", "10080")
-    )  # 7 days
-    failed_runs_limit = int(os.getenv("FAILED_RUNS_LIMIT", "10"))
-    url = str(os.getenv("PREFECT_API_URL", "http://localhost:4200/api"))
-    api_key = str(os.getenv("PREFECT_API_KEY", ""))
-    api_auth_string = str(os.getenv("PREFECT_API_AUTH_STRING", ""))
-    csrf_client_id = str(uuid.uuid4())
-    request_timeout = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "60"))
-    # Configure logging
+    config = Config.from_env()
     logging.basicConfig(
-        level=loglevel, format="%(asctime)s - %(name)s - [%(levelname)s] %(message)s"
+        level=config.log_level,
+        format="%(asctime)s - %(name)s - [%(levelname)s] %(message)s",
     )
     logger = logging.getLogger("prometheus-prefect-exporter")
+    if "OFFSET_MINUTES" in os.environ:
+        logger.warning("OFFSET_MINUTES is no longer used and is ignored")
 
-    # Configure headers for HTTP requests
-    headers = {"accept": "application/json", "Content-Type": "application/json"}
+    headers = config.headers()
 
-    if api_auth_string:
-        api_auth_string_encoded = base64.b64encode(
-            api_auth_string.encode("utf-8")
-        ).decode("utf-8")
-        headers["Authorization"] = f"Basic {api_auth_string_encoded}"
-        logger.info("Added Basic Authorization header for PREFECT_API_AUTH_STRING")
-
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-        logger.info("Added Bearer Authorization header for PREFECT_API_KEY")
-
-    # check endpoint
     PrefectHealthz(
-        url=url,
+        url=config.url,
         headers=headers,
-        max_retries=max_retries,
+        max_retries=config.max_retries,
         logger=logger,
-        timeout=request_timeout,
+        timeout=config.request_timeout,
     ).get_health_check()
 
-    ##
-    # NOTIFY IF PAGINATION IS ENABLED
-    #
-    enable_pagination = str(os.getenv("PAGINATION_ENABLED", "True")) == "True"
-    pagination_limit = int(os.getenv("PAGINATION_LIMIT", 200))
-    enable_flow_run_name_label = (
-        str(os.getenv("ENABLE_FLOW_RUN_NAME_LABEL", "False")) == "True"
+    health = ExporterHealth(REGISTRY)
+    api_kwargs = dict(
+        url=config.url,
+        headers=headers,
+        max_retries=config.max_retries,
+        logger=logger,
+        enable_pagination=config.enable_pagination,
+        pagination_limit=config.pagination_limit,
+        timeout=config.request_timeout,
+        health=health,
     )
-    if enable_pagination:
-        logger.info("Pagination is enabled")
-        logger.info(f"Pagination limit is {pagination_limit}")
-    else:
-        logger.info("Pagination is disabled")
-
-    if enable_flow_run_name_label:
-        logger.info(
-            "Flow run name label is enabled on prefect_info_flow_runs and prefect_flow_runs_ongoing_run_time"
+    if config.csrf_enabled:
+        token_api = PrefectApiMetric(**api_kwargs)
+        client_id = str(uuid.uuid4())
+        api_kwargs["csrf"] = CsrfSession(
+            client_id, lambda: token_api.get_csrf_token(client_id)
         )
 
-    # Create an instance of the PrefectMetrics class
-    metrics = PrefectMetrics(
-        url=url,
-        headers=headers,
-        offset_minutes=offset_minutes,
-        failed_runs_offset_minutes=failed_runs_offset_minutes,
-        failed_runs_limit=failed_runs_limit,
-        max_retries=max_retries,
-        client_id=csrf_client_id,
-        csrf_enabled=str(os.getenv("PREFECT_CSRF_ENABLED", "False")) == "True",
-        logger=logger,
-        # Enable pagination if not specified to avoid breaking existing deployments
-        enable_pagination=enable_pagination,
-        pagination_limit=pagination_limit,
-        enable_flow_run_name_label=enable_flow_run_name_label,
-        timeout=request_timeout,
+    stop = threading.Event()
+    inventory = InventoryPoller(
+        api_kwargs,
+        failed_runs_offset_minutes=config.failed_runs_offset_minutes,
+        failed_runs_limit=config.failed_runs_limit,
     )
+    runs = RunGaugePoller(
+        api_kwargs,
+        inventory_names=lambda: inventory.names,
+        enable_flow_run_name_label=config.enable_flow_run_name_label,
+        logger=logger,
+    )
+    loops = [
+        PollLoop(
+            "inventory",
+            inventory.poll,
+            config.inventory_poll_interval,
+            health,
+            stop,
+            logger,
+        ),
+        PollLoop("runs", runs.poll, config.run_poll_interval, health, stop, logger),
+    ]
+    REGISTRY.register(PolledMetricsCollector(loops))
 
-    # Register the metrics with Prometheus
-    logger.info("Initializing metrics...")
-    REGISTRY.register(metrics)
+    start_http_server(config.metrics_port, config.metrics_addr)
+    logger.info(f"Exporter listening on {config.metrics_addr}:{config.metrics_port}")
+    for loop in loops:
+        loop.start()
 
-    # Start the HTTP server to expose Prometheus metrics
-    start_http_server(metrics_port, metrics_addr)
-    logger.info(f"Exporter listening on {metrics_addr}:{metrics_port}")
-
-    # Keep the process alive
     try:
-        threading.Event().wait()
+        stop.wait()
     except KeyboardInterrupt:
         logger.info("Shutting down...")
+        stop.set()
 
 
 if __name__ == "__main__":

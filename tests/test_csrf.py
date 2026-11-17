@@ -1,11 +1,12 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock
 
 import pytest
 import responses
 
-from metrics.csrf import CsrfToken
-from metrics.metrics import PrefectMetrics
+from metrics.api_metric import PrefectApiMetric
+from metrics.csrf import CsrfSession, CsrfToken
 
 
 @pytest.mark.parametrize(
@@ -45,25 +46,84 @@ def test_get_csrf_token_returns_the_parsed_server_token():
             "expiration": "2026-11-17T12:30:00Z",
         },
     )
-    metrics = PrefectMetrics(
-        url="http://prefect.test/api",
-        headers={},
-        offset_minutes=3,
-        failed_runs_offset_minutes=10080,
-        failed_runs_limit=10,
-        max_retries=1,
-        timeout=10,
-        client_id="test-client-id",
-        csrf_enabled=True,
-        logger=logging.getLogger("test"),
-        enable_pagination=False,
-        pagination_limit=200,
-    )
 
-    token = metrics.get_csrf_token()
+    token = _api().get_csrf_token("test-client-id")
 
     assert token == CsrfToken(
         token="server-token",
         expiration=datetime(2026, 11, 17, 12, 30, tzinfo=timezone.utc),
     )
     assert "client=test-client-id" in responses.calls[0].request.url
+
+
+@responses.activate
+def test_csrf_503_with_retry_after_gives_up_without_retrying(monkeypatch):
+    sleep_mock = MagicMock()
+    monkeypatch.setattr("metrics.api_metric.time.sleep", sleep_mock)
+    responses.add(
+        responses.GET,
+        "http://prefect.test/api/csrf-token",
+        status=503,
+        headers={"Retry-After": "1200", "Prefect-Maintenance": "true"},
+        json={},
+    )
+
+    assert _api(max_retries=3).get_csrf_token("c") is None
+    assert sleep_mock.call_count == 0
+    assert len(responses.calls) == 1
+
+
+def test_session_fetches_once_and_refetches_after_expiry():
+    clock = [datetime(2026, 11, 17, 12, 0, tzinfo=timezone.utc)]
+    issued = []
+
+    def fetch():
+        issued.append(clock[0])
+        return CsrfToken(f"t{len(issued)}", clock[0] + timedelta(minutes=10))
+
+    session = CsrfSession("client-1", fetch, now=lambda: clock[0])
+
+    assert session.headers() == {
+        "Prefect-Csrf-Token": "t1",
+        "Prefect-Csrf-Client": "client-1",
+    }
+    assert session.headers()["Prefect-Csrf-Token"] == "t1"
+    clock[0] += timedelta(minutes=10)
+    assert session.headers()["Prefect-Csrf-Token"] == "t2"
+    assert len(issued) == 2
+
+
+def test_session_sends_no_headers_when_the_fetch_fails_and_retries_next_time():
+    tokens = iter([None, CsrfToken("t", datetime(2999, 1, 1, tzinfo=timezone.utc))])
+    session = CsrfSession("client-1", lambda: next(tokens))
+
+    assert session.headers() == {}
+    assert session.headers()["Prefect-Csrf-Token"] == "t"
+
+
+@responses.activate
+def test_requests_carry_the_session_csrf_headers():
+    responses.add(responses.POST, "http://prefect.test/api/flows/count", json=3)
+    token = CsrfToken("t", datetime(2999, 1, 1, tzinfo=timezone.utc))
+    api = _api(csrf=CsrfSession("client-1", lambda: token))
+
+    assert api.get_count() == 3
+    sent = responses.calls[0].request.headers
+    assert sent["Prefect-Csrf-Token"] == "t"
+    assert sent["Prefect-Csrf-Client"] == "client-1"
+    assert "Prefect-Csrf-Token" not in api.headers
+
+
+def _api(**overrides):
+    kwargs = dict(
+        url="http://prefect.test/api",
+        headers={"accept": "application/json"},
+        max_retries=1,
+        timeout=10,
+        logger=logging.getLogger("test"),
+        enable_pagination=False,
+        pagination_limit=200,
+        uri="flows",
+    )
+    kwargs.update(overrides)
+    return PrefectApiMetric(**kwargs)

@@ -1,4 +1,4 @@
-from metrics.api_metric import PrefectApiMetric
+from metrics.api_metric import Listing, PrefectApiMetric
 
 
 class PrefectFlows(PrefectApiMetric):
@@ -6,53 +6,14 @@ class PrefectFlows(PrefectApiMetric):
     PrefectFlows class for interacting with Prefect's flows endpoints.
     """
 
+    uri = "flows"
     default_sort = "NAME_ASC"
 
-    def __init__(
-        self,
-        url,
-        headers,
-        max_retries,
-        logger,
-        enable_pagination,
-        pagination_limit,
-        timeout,
-        uri="flows",
-        health=None,
-    ) -> None:
-        """
-        Initialize the PrefectFlows instance.
-
-        Args:
-            url (str): The URL of the Prefect instance.
-            headers (dict): Headers to be included in HTTP requests.
-            max_retries (int): The maximum number of retries for HTTP requests.
-            logger (obj): The logger object.
-            uri (str, optional): The URI path for administrative endpoints. Default is "flows".
-            timeout (float): Timeout in seconds for each HTTP request.
-            health (ExporterHealth, optional): Where API errors are counted.
-
-        """
-        super().__init__(
-            url=url,
-            headers=headers,
-            max_retries=max_retries,
-            logger=logger,
-            enable_pagination=enable_pagination,
-            pagination_limit=pagination_limit,
-            uri=uri,
-            timeout=timeout,
-            health=health,
-        )
-
-    def get_flows_info(self) -> list:
+    def get_flows_info(self) -> Listing:
         """
         Get information about Prefect flows.
 
         Returns:
-            dict: JSON response containing information about flows.
-
+            Listing: Every flow the listing returned.
         """
-        all_flows = self._get_with_pagination()
-
-        return all_flows
+        return self._get_with_pagination()
