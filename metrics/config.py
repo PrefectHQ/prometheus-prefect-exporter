@@ -2,7 +2,7 @@ import base64
 import os
 import re
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Mapping, Optional
 
 # Prefect Cloud workspace API URLs end in /accounts/<id>/workspaces/<id>.
 _CLOUD_WORKSPACE_PATH = re.compile(r"/accounts/[^/]+/workspaces/[^/]+/?$")
@@ -32,10 +32,27 @@ class Config:
     enable_flow_run_name_label: bool
     inventory_poll_interval: float
     run_poll_interval: float
+    duplicate_memory_hours: float
+    stream_backfill_window: Optional[float]
 
     @property
     def is_cloud(self) -> bool:
         return bool(_CLOUD_WORKSPACE_PATH.search(self.url))
+
+    @property
+    def backfill_window_seconds(self) -> float:
+        """
+        The longest backfill the server replays: `STREAM_BACKFILL_WINDOW_SECONDS`
+        if set, else 2 minutes for Prefect Cloud and 15 for an open-source server.
+        """
+        if self.stream_backfill_window is not None:
+            return self.stream_backfill_window
+        return 120.0 if self.is_cloud else 900.0
+
+    @property
+    def stream_token(self) -> Optional[str]:
+        """The token of the event stream's auth message."""
+        return self.api_key or self.api_auth_string or None
 
     def headers(self) -> dict:
         """The headers sent with every API request."""
@@ -76,4 +93,10 @@ class Config:
                 env.get("INVENTORY_POLL_INTERVAL_SECONDS", "300")
             ),
             run_poll_interval=float(env.get("RUN_POLL_INTERVAL_SECONDS", "60")),
+            duplicate_memory_hours=float(env.get("DUPLICATE_MEMORY_HOURS", "24")),
+            stream_backfill_window=(
+                float(env["STREAM_BACKFILL_WINDOW_SECONDS"])
+                if env.get("STREAM_BACKFILL_WINDOW_SECONDS")
+                else None
+            ),
         )
