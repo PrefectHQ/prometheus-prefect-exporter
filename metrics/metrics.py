@@ -3,9 +3,9 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 import requests
-from prefect.client.schemas.objects import CsrfToken
 from prometheus_client.core import GaugeMetricFamily
 
+from metrics.csrf import CsrfToken
 from metrics.deployments import PrefectDeployments
 from metrics.flow_runs import PrefectFlowRuns
 from metrics.flows import PrefectFlows
@@ -608,7 +608,7 @@ class PrefectMetrics(object):
                     endpoint, headers=self.headers, timeout=self.timeout
                 )
                 resp.raise_for_status()
-                return CsrfToken.model_validate(resp.json())
+                return CsrfToken.from_response(resp.json())
             except requests.exceptions.RequestException as err:
                 signal = detect_retry_after(err.response)
                 if signal is not None:
