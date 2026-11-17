@@ -14,6 +14,7 @@ from metrics.healthz import PrefectHealthz
 from metrics.inventory import InventoryPoller
 from metrics.poller import PollLoop
 from metrics.run_gauges import RunGaugePoller
+from metrics.stream.counters import FlowRunStreamMetrics
 
 
 def metrics():
@@ -57,11 +58,14 @@ def metrics():
             client_id, lambda: token_api.get_csrf_token(client_id)
         )
 
+    stream_metrics = FlowRunStreamMetrics(REGISTRY)
+
     stop = threading.Event()
     inventory = InventoryPoller(
         api_kwargs,
         failed_runs_offset_minutes=config.failed_runs_offset_minutes,
         failed_runs_limit=config.failed_runs_limit,
+        on_inventory=stream_metrics.precreate,
     )
     runs = RunGaugePoller(
         api_kwargs,
