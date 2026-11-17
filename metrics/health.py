@@ -35,3 +35,60 @@ class ExporterHealth:
         for poller in POLLERS:
             self.poll_success.labels(poller)
             self.poll_duration.labels(poller)
+
+
+RECONNECT_REASONS = ("server_close", "ping_timeout", "error")
+EVENT_OUTCOMES = ("counted", "duplicate", "ignored", "missing_run_count")
+
+
+class StreamHealth:
+    """The `prefect_exporter_stream_*` metrics that report the event stream's health."""
+
+    def __init__(self, registry: CollectorRegistry = REGISTRY) -> None:
+        self.connected = Gauge(
+            "prefect_exporter_stream_connected",
+            "1 while the event stream socket is open and answering pings",
+            registry=registry,
+        )
+        self.refused = Gauge(
+            "prefect_exporter_stream_refused",
+            "1 while the server refuses the event stream subscription",
+            registry=registry,
+        )
+        self.last_event_timestamp = Gauge(
+            "prefect_exporter_stream_last_event_timestamp_seconds",
+            "When the last event arrived, in seconds since the epoch",
+            registry=registry,
+        )
+        self.reconnects = Counter(
+            "prefect_exporter_stream_reconnects",
+            "Reconnects of the event stream after an unplanned close, by reason",
+            ["reason"],
+            registry=registry,
+        )
+        self.disconnected_seconds = Counter(
+            "prefect_exporter_stream_disconnected_seconds",
+            "Time without an event stream subscription",
+            registry=registry,
+        )
+        self.gap_seconds = Counter(
+            "prefect_exporter_stream_gap_seconds",
+            "Disconnected time that backfill did not cover, where terminal "
+            "states may be missing from the counts",
+            registry=registry,
+        )
+        self.backfill_failures = Counter(
+            "prefect_exporter_stream_backfill_failures",
+            "Connects that the server closed while replaying backfill",
+            registry=registry,
+        )
+        self.events = Counter(
+            "prefect_exporter_stream_events",
+            "Events received, by outcome",
+            ["outcome"],
+            registry=registry,
+        )
+        for reason in RECONNECT_REASONS:
+            self.reconnects.labels(reason)
+        for outcome in EVENT_OUTCOMES:
+            self.events.labels(outcome)
