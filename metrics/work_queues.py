@@ -1,10 +1,6 @@
 import uuid
 
-import requests
-import time
-
 from metrics.api_metric import PrefectApiMetric
-from metrics.retry_after import detect_retry_after, log_retry_after
 
 
 class PrefectWorkQueues(PrefectApiMetric):
@@ -22,6 +18,7 @@ class PrefectWorkQueues(PrefectApiMetric):
         pagination_limit,
         timeout,
         uri="work_queues",
+        health=None,
     ) -> None:
         """
         Initialize the PrefectWorkQueues instance.
@@ -33,6 +30,7 @@ class PrefectWorkQueues(PrefectApiMetric):
             logger (obj): The logger object.
             uri (str, optional): The URI path for administrative endpoints. Default is "work_queues".
             timeout (float): Timeout in seconds for each HTTP request.
+            health (ExporterHealth, optional): Where API errors are counted.
 
         """
         super().__init__(
@@ -44,6 +42,7 @@ class PrefectWorkQueues(PrefectApiMetric):
             pagination_limit=pagination_limit,
             uri=uri,
             timeout=timeout,
+            health=health,
         )
 
     def get_work_queues_info(self) -> list:
@@ -72,29 +71,12 @@ class PrefectWorkQueues(PrefectApiMetric):
 
         Returns:
             dict: JSON response containing work queue status information,
-                  or an empty dict on failure.
+                  or an empty dict when every attempt failed.
 
         """
-        endpoint = f"{self.url}/{self.uri}/{work_queue_id}/status"
-
-        for retry in range(self.max_retries):
-            try:
-                resp = requests.get(
-                    endpoint, headers=self.headers, timeout=self.timeout
-                )
-                resp.raise_for_status()
-                return resp.json()
-            except requests.exceptions.RequestException as err:
-                signal = detect_retry_after(err.response)
-                if signal is not None:
-                    log_retry_after(self.logger, endpoint, signal)
-                    return {}
-                self.logger.error(err)
-                if retry < self.max_retries - 1:
-                    time.sleep(2**retry)
-                else:
-                    self.logger.error(
-                        "Max retries reached for %s, returning empty status",
-                        endpoint,
-                    )
-                    return {}
+        resp = self._request(
+            "GET",
+            f"{self.uri}/{work_queue_id}/status",
+            f"/{self.uri}/{{id}}/status",
+        )
+        return {} if resp is None else resp.json()

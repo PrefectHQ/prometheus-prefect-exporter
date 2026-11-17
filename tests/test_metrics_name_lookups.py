@@ -19,9 +19,10 @@ def _collect(monkeypatch, listings, get_by_ids, get_count):
         (
             PrefectApiMetric,
             "_get_with_pagination",
-            lambda self, base_data=None: listings.get(self.uri, []),
+            lambda self, base_data=None, path=None: listings.get(self.uri, []),
         ),
         (PrefectApiMetric, "get_by_ids", get_by_ids),
+        (PrefectFlowRuns, "_flow_runs_filter_path", lambda self: "flow_runs/filter"),
         (PrefectApiMetric, "get_count", get_count),
         (
             PrefectFlowRuns,

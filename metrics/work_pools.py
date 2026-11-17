@@ -16,6 +16,7 @@ class PrefectWorkPools(PrefectApiMetric):
         pagination_limit,
         timeout,
         uri="work_pools",
+        health=None,
     ) -> None:
         """
         Initialize the PrefectWorkPools instance.
@@ -27,6 +28,7 @@ class PrefectWorkPools(PrefectApiMetric):
             logger (obj): The logger object.
             uri (str, optional): The URI path for administrative endpoints. Default is "work_pools".
             timeout (float): Timeout in seconds for each HTTP request.
+            health (ExporterHealth, optional): Where API errors are counted.
 
         """
         super().__init__(
@@ -38,6 +40,7 @@ class PrefectWorkPools(PrefectApiMetric):
             pagination_limit=pagination_limit,
             uri=uri,
             timeout=timeout,
+            health=health,
         )
 
     def get_work_pools_info(self) -> list:

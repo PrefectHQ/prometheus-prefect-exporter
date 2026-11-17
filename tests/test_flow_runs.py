@@ -49,12 +49,17 @@ def _register_by_state(runs_by_state):
         page = runs[offset : offset + limit] if limit is not None else runs
         return (200, {}, json.dumps(page))
 
+    responses.add(responses.POST, f"{URL}/flow_runs/filter-minimal", status=404)
     responses.add_callback(
         responses.POST,
         f"{URL}/flow_runs/filter",
         callback=callback,
         content_type="application/json",
     )
+
+
+def _filter_calls():
+    return [c for c in responses.calls if c.request.url == f"{URL}/flow_runs/filter"]
 
 
 def _run(run_id, state_type):
@@ -99,7 +104,7 @@ def test_queries_every_state_type():
     _make().get_flow_runs_info()
 
     queried_states = []
-    for call in responses.calls:
+    for call in _filter_calls():
         body = json.loads(call.request.body)
         queried_states.extend(body["flow_runs"]["state"]["type"]["any_"])
 
@@ -128,7 +133,7 @@ def test_carries_start_time_filter():
     _register_by_state({})
     _make().get_flow_runs_info()
 
-    for call in responses.calls:
+    for call in _filter_calls():
         body = json.loads(call.request.body)
         assert "after_" in body["flow_runs"]["start_time"]
 

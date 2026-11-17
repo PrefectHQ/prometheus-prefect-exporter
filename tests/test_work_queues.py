@@ -22,7 +22,7 @@ def _make():
 @responses.activate
 def test_status_503_with_retry_after_returns_empty(monkeypatch):
     sleep_mock = MagicMock()
-    monkeypatch.setattr("metrics.work_queues.time.sleep", sleep_mock)
+    monkeypatch.setattr("metrics.api_metric.time.sleep", sleep_mock)
 
     queue_id = uuid.uuid4()
     responses.add(
@@ -42,7 +42,7 @@ def test_status_503_with_retry_after_returns_empty(monkeypatch):
 @responses.activate
 def test_status_500_without_retry_after_still_retries(monkeypatch):
     sleep_mock = MagicMock()
-    monkeypatch.setattr("metrics.work_queues.time.sleep", sleep_mock)
+    monkeypatch.setattr("metrics.api_metric.time.sleep", sleep_mock)
 
     queue_id = uuid.uuid4()
     url = f"http://prefect.test/api/work_queues/{queue_id}/status"

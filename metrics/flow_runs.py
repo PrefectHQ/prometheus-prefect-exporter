@@ -26,6 +26,8 @@ class PrefectFlowRuns(PrefectApiMetric):
         "CRASHED",
     ]
 
+    default_sort = "ID_DESC"
+
     def __init__(
         self,
         url,
@@ -37,6 +39,7 @@ class PrefectFlowRuns(PrefectApiMetric):
         pagination_limit,
         timeout,
         uri="flow_runs",
+        health=None,
     ) -> None:
         """
         Initialize the PrefectFlowRuns instance.
@@ -49,6 +52,7 @@ class PrefectFlowRuns(PrefectApiMetric):
             logger (obj): The logger object.
             uri (str, optional): The URI path for flow runs endpoints. Default is "flow_runs".
             timeout (float): Timeout in seconds for each HTTP request.
+            health (ExporterHealth, optional): Where API errors are counted.
 
         """
         super().__init__(
@@ -60,11 +64,49 @@ class PrefectFlowRuns(PrefectApiMetric):
             pagination_limit=pagination_limit,
             uri=uri,
             timeout=timeout,
+            health=health,
         )
+
+        # None until the first probe of /flow_runs/filter-minimal answers.
+        self.filter_minimal_supported = None
 
         # Calculate timestamps for before and after data
         after_data = datetime.now(timezone.utc) - timedelta(minutes=offset_minutes)
         self.after_data_fmt = after_data.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+    def _flow_runs_filter_path(self) -> str:
+        """
+        Return the flow-run filter path to list with: "flow_runs/filter-minimal"
+        where the server has it, else "flow_runs/filter".
+
+        The minimal route omits each run's full state object, which the
+        exporter does not read. Open-source servers do not have it. One probe
+        decides for the life of this object; a probe that fails for any other
+        reason falls back to the full route, which every server has.
+        """
+        if self.filter_minimal_supported is None:
+            resp = self._post(
+                "flow_runs/filter-minimal",
+                {"limit": 1, "sort": self.default_sort},
+                passthrough_statuses=frozenset({404, 405}),
+                attempts=1,
+            )
+            self.filter_minimal_supported = (
+                resp is not None
+                and resp.status_code
+                not in (
+                    404,
+                    405,
+                )
+            )
+        if self.filter_minimal_supported:
+            return "flow_runs/filter-minimal"
+        return "flow_runs/filter"
+
+    def _list_flow_runs(self, base_data: dict) -> list:
+        return self._get_with_pagination(
+            base_data=base_data, path=self._flow_runs_filter_path()
+        )
 
     def get_flow_runs_info(self) -> list:
         """
@@ -83,7 +125,7 @@ class PrefectFlowRuns(PrefectApiMetric):
         """
         flow_runs_by_id = {}
         for state_type in self.STATE_TYPES:
-            for flow_run in self._get_with_pagination(
+            for flow_run in self._list_flow_runs(
                 base_data={
                     "flow_runs": {
                         "operator": "and_",
@@ -105,7 +147,7 @@ class PrefectFlowRuns(PrefectApiMetric):
         Returns:
             dict: JSON response containing flow runs information.
         """
-        all_flow_runs = self._get_with_pagination(
+        all_flow_runs = self._list_flow_runs(
             base_data={
                 "flow_runs": {
                     "operator": "and_",
@@ -123,7 +165,7 @@ class PrefectFlowRuns(PrefectApiMetric):
         Returns:
             dict: JSON response containing ongoing flow runs information.
         """
-        ongoing_flow_runs = self._get_with_pagination(
+        ongoing_flow_runs = self._list_flow_runs(
             base_data={
                 "flow_runs": {
                     "operator": "and_",
@@ -145,7 +187,7 @@ class PrefectFlowRuns(PrefectApiMetric):
         Returns:
             dict: Mapping of (deployment_id, flow_id, state_name) -> [run_id, ...]
         """
-        all_failed = self._get_with_pagination(
+        all_failed = self._list_flow_runs(
             base_data={
                 "flow_runs": {
                     "operator": "and_",

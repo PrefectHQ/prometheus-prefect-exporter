@@ -6,6 +6,8 @@ class PrefectFlows(PrefectApiMetric):
     PrefectFlows class for interacting with Prefect's flows endpoints.
     """
 
+    default_sort = "NAME_ASC"
+
     def __init__(
         self,
         url,
@@ -16,6 +18,7 @@ class PrefectFlows(PrefectApiMetric):
         pagination_limit,
         timeout,
         uri="flows",
+        health=None,
     ) -> None:
         """
         Initialize the PrefectFlows instance.
@@ -27,6 +30,7 @@ class PrefectFlows(PrefectApiMetric):
             logger (obj): The logger object.
             uri (str, optional): The URI path for administrative endpoints. Default is "flows".
             timeout (float): Timeout in seconds for each HTTP request.
+            health (ExporterHealth, optional): Where API errors are counted.
 
         """
         super().__init__(
@@ -38,6 +42,7 @@ class PrefectFlows(PrefectApiMetric):
             pagination_limit=pagination_limit,
             uri=uri,
             timeout=timeout,
+            health=health,
         )
 
     def get_flows_info(self) -> list:

@@ -6,6 +6,8 @@ class PrefectDeployments(PrefectApiMetric):
     PrefectDeployments class for interacting with Prefect's deployments endpoints.
     """
 
+    default_sort = "NAME_ASC"
+
     def __init__(
         self,
         url,
@@ -16,6 +18,7 @@ class PrefectDeployments(PrefectApiMetric):
         pagination_limit,
         timeout,
         uri="deployments",
+        health=None,
     ) -> None:
         """
         Initialize the PrefectDeployments instance.
@@ -28,6 +31,7 @@ class PrefectDeployments(PrefectApiMetric):
             uri (str, optional): The URI path for deployments endpoints. Default is "deployments".
             pagination_limit (int): The maximum number of pages to fetch.
             timeout (float): Timeout in seconds for each HTTP request.
+            health (ExporterHealth, optional): Where API errors are counted.
         """
         super().__init__(
             url=url,
@@ -38,6 +42,7 @@ class PrefectDeployments(PrefectApiMetric):
             pagination_limit=pagination_limit,
             uri=uri,
             timeout=timeout,
+            health=health,
         )
 
     def get_deployments_info(self) -> list:
