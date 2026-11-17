@@ -212,7 +212,7 @@ The exporter's health:
 | `prefect_exporter_stream_disconnected_seconds_total` | counter | Time without a subscription |
 | `prefect_exporter_stream_gap_seconds_total` | counter | Disconnected time that the server's replay did not cover |
 | `prefect_exporter_stream_backfill_failures_total` | counter | Connects that the server closed while replaying events |
-| `prefect_exporter_stream_events_total` | counter | Events, by `outcome` (`counted`, `duplicate`, `ignored`, `missing_run_count`) |
+| `prefect_exporter_stream_events_total` | counter | Events, by `outcome` (`counted`, `duplicate`, `ignored`, `malformed`); `missing_run_count` is counted in addition to an event's outcome |
 | `prefect_exporter_poll_success` | gauge | 1 if the last poll of each `poller` read everything it asked for |
 | `prefect_exporter_poll_duration_seconds` | histogram | Poll duration, by `poller` |
 | `prefect_exporter_api_errors_total` | counter | Failed API requests, by `endpoint` and `status` |
