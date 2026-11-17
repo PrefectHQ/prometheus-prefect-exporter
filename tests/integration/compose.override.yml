@@ -1,0 +1,8 @@
+---
+# Used with the repository's compose.yml by the integration tests. A 10 second
+# backfill window lets a test outlast it without waiting 15 minutes.
+services:
+  prefect:
+    environment:
+      PREFECT_LOGGING_LEVEL: info
+      PREFECT_SERVER_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL: PT10S

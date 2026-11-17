@@ -80,12 +80,15 @@ class Relay:
     A TCP relay in front of the fake server. `freeze()` stops forwarding on
     the connections open at that moment, so those sockets stay open but pings
     get no reply; later connections pass. `cut()` drops the open connections
-    without a close frame.
+    without a close frame. While `refusing` is True, new connections are
+    dropped as they arrive.
     """
 
-    def __init__(self, upstream_port):
+    def __init__(self, upstream_port, upstream_host="127.0.0.1"):
+        self.upstream_host = upstream_host
         self.upstream_port = upstream_port
         self.connections = []
+        self.refusing = False
         self._server = None
 
     async def _pump(self, reader, writer, state):
@@ -101,8 +104,11 @@ class Relay:
             writer.close()
 
     async def _handle(self, client_reader, client_writer):
+        if self.refusing:
+            client_writer.transport.abort()
+            return
         upstream_reader, upstream_writer = await asyncio.open_connection(
-            "127.0.0.1", self.upstream_port
+            self.upstream_host, self.upstream_port
         )
         state = {"frozen": False, "writers": (client_writer, upstream_writer)}
         self.connections.append(state)

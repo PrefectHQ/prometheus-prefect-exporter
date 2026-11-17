@@ -6,6 +6,7 @@ name: Tests
   push:
     branches:
       - main
+  workflow_dispatch: {}
 
 permissions: {}
 
@@ -34,3 +35,76 @@ jobs:
 
       - name: Run pytest
         run: pytest
+
+  integration:
+    name: integration (self-hosted server)
+    runs-on: ubuntu-latest
+    permissions:
+      # required to read from the repo
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.15"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Start a Prefect server
+        run: docker compose -f compose.yml -f tests/integration/compose.override.yml up -d --wait prefect
+
+      - name: Run the integration tests
+        run: pytest -m integration
+        env:
+          PREFECT_INTEGRATION_API_URL: http://localhost:4200/api
+
+      - name: Check that the image subscribes and serves /metrics
+        run: |
+          docker compose -f compose.yml -f tests/integration/compose.override.yml up -d --build prometheus-exporter
+          for _ in $(seq 1 30); do
+            if curl --silent http://localhost:8000/metrics | grep -q '^prefect_exporter_stream_connected 1.0'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs prometheus-exporter
+          exit 1
+
+  integration-ha:
+    name: integration (two API replicas on Redis)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      # required to read from the repo
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.15"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Start two API replicas behind a proxy
+        run: docker compose -f tests/integration/compose.ha.yml up -d --wait
+
+      - name: Run the integration tests
+        run: pytest -m integration
+        env:
+          PREFECT_INTEGRATION_API_URL: http://localhost:4280/api
