@@ -36,6 +36,7 @@ class Harness:
             backfill_window=5.0,
             ping_interval=0.05,
             ping_timeout=0.1,
+            replace_after=3600.0,
             delivering_grace=0.2,
             backoff_initial=0.01,
             backoff_max=0.05,

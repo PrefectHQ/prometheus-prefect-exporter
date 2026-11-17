@@ -40,9 +40,12 @@ class StreamSettings:
     backfill_window: float
     ping_interval: float = 20.0
     ping_timeout: float = 20.0
-    # A subscription that has delivered no event counts as delivering once it
-    # has stayed open this long. Prefect Cloud's last follow-up backfill runs
-    # 20 seconds after connect.
+    # Prefect Cloud ends every websocket at 600 seconds, so the socket is
+    # replaced before then.
+    replace_after: float = 540.0
+    # A replacement socket that has delivered no event counts as delivering
+    # once it has stayed open this long. Prefect Cloud's last follow-up
+    # backfill runs 20 seconds after connect.
     delivering_grace: float = 30.0
     immediate_retries: int = 2
     backoff_initial: float = 1.0
@@ -76,6 +79,7 @@ class Subscription:
         self.delivering = asyncio.Event()
         self.ended = asyncio.Event()
         self.end_kind: Optional[str] = None
+        self.replace_due = 0.0
         self.tasks: list[asyncio.Task] = []
 
     def end(self, kind: str) -> None:
@@ -189,9 +193,16 @@ class EventStream:
                     if not backfill:
                         self.backfill_failures = 0
 
-                await self._wait_for_end(current)
+                await self._wait_for_end_or_replacement(current)
                 if self._stop.is_set():
                     break
+                if current.end_kind is None:
+                    replacement = await self._replace(current)
+                    if replacement is not None:
+                        current = replacement
+                        continue
+                    if current.end_kind is None:
+                        continue
 
                 await self._after_unplanned_end(current)
                 current = None
@@ -289,6 +300,9 @@ class EventStream:
             raise SubscribeFailed("error", "no reply to the auth message") from err
 
         subscription = Subscription(ws, backfill, self.wall())
+        subscription.replace_due = asyncio.get_running_loop().time() + (
+            self.settings.replace_after
+        )
         subscription.tasks = [
             asyncio.create_task(self._receive(subscription)),
             asyncio.create_task(self._keepalive(subscription)),
@@ -403,15 +417,18 @@ class EventStream:
     def _update_connected(self) -> None:
         self.health.connected.set(1 if self.open_subscriptions else 0)
 
-    # Waiting and ending
+    # Waiting, ending and replacing
 
-    async def _wait_for_end(self, subscription: Subscription) -> None:
+    async def _wait_for_end_or_replacement(self, subscription: Subscription) -> None:
+        timeout = subscription.replace_due - asyncio.get_running_loop().time()
         waiters = [
             asyncio.create_task(subscription.ended.wait()),
             asyncio.create_task(self._stop.wait()),
         ]
         try:
-            await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+            await asyncio.wait(
+                waiters, timeout=max(0.0, timeout), return_when=asyncio.FIRST_COMPLETED
+            )
         finally:
             for waiter in waiters:
                 waiter.cancel()
@@ -453,3 +470,50 @@ class EventStream:
 
         self.failed_attempts += 1
         await self._sleep(self._backoff(self.failed_attempts))
+
+    async def _replace(self, current: Subscription) -> Optional[Subscription]:
+        """
+        Open a new subscription with backfill beside `current`, and close
+        `current` once the new one is delivering.
+
+        Returns:
+            Subscription: The new subscription, or None if it failed; then
+            `current` is kept and the replacement is tried again later.
+        """
+        try:
+            replacement = await self._subscribe(backfill=True)
+        except (Refused, SubscribeFailed) as err:
+            self.logger.warning("Event stream replacement failed to connect: %s", err)
+            self._retry_replacement_later(current)
+            return None
+
+        waiters = [
+            asyncio.create_task(replacement.delivering.wait()),
+            asyncio.create_task(replacement.ended.wait()),
+            asyncio.create_task(self._stop.wait()),
+        ]
+        try:
+            await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for waiter in waiters:
+                waiter.cancel()
+
+        if not replacement.delivering.is_set():
+            if replacement.end_kind == "backfill_failure":
+                self.backfill_failures += 1
+                self.health.backfill_failures.inc()
+            await replacement.close(replacement.end_kind or "stopped")
+            self.open_subscriptions.discard(replacement)
+            self._update_connected()
+            self._retry_replacement_later(current)
+            return None
+
+        await current.close("replaced")
+        self.open_subscriptions.discard(current)
+        self._update_connected()
+        return replacement
+
+    def _retry_replacement_later(self, current: Subscription) -> None:
+        current.replace_due = asyncio.get_running_loop().time() + max(
+            self.settings.backoff_initial, self._backoff(self.failed_attempts + 3)
+        )
