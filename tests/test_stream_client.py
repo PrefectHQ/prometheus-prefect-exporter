@@ -830,6 +830,85 @@ def test_a_failed_step_after_the_held_socket_ended_still_counts_the_disconnectio
     run(scenario())
 
 
+def test_a_failed_step_counts_from_the_replacement_that_took_over():
+    async def scenario():
+        async def first(ws, filter_message):
+            await ws.send(event_message(TERMINALS[0]))
+            await ws.wait_closed()
+
+        async def replacement(ws, filter_message):
+            await ws.send(event_message(TERMINALS[1]))
+            await asyncio.sleep(0.9)
+            await ws.close(1001)
+
+        async with FakeEventsServer() as server:
+            server.scripts = [first, replacement]
+            # No pongs, so each socket's last sign of life is its event, and a
+            # 0.5 s wait follows the error.
+            harness = Harness(
+                server.port,
+                replace_after=0.6,
+                backoff_initial=0.5,
+                ping_interval=10.0,
+            )
+            stream = harness.stream
+            original = stream._replace
+            calls = []
+
+            async def replace_once_then_fail(current):
+                calls.append(1)
+                if len(calls) == 1:
+                    return await original(current)
+                if len(calls) == 2:
+                    await current.ended.wait()
+                    raise RuntimeError("unexpected")
+                await stream._stop.wait()
+                return None
+
+            stream._replace = replace_once_then_fail
+            async with harness:
+                await wait_until(lambda: len(server.filters) == 3)
+                await wait_until(lambda: _disconnected(harness) > 0)
+                # From the replacement's event: 0.9 s until it closed, then the
+                # 0.5 s wait. Counting from the first socket's event would add
+                # the 0.6 s before the replacement.
+                assert _disconnected(harness) == pytest.approx(1.4, abs=0.25)
+
+    run(scenario())
+
+
+def test_an_error_while_handling_an_end_still_counts_the_disconnection():
+    async def scenario():
+        async def ends(ws, filter_message):
+            await ws.send(event_message(TERMINALS[0]))
+            await asyncio.sleep(0.4)
+            await ws.close(1001)
+
+        async with FakeEventsServer() as server:
+            server.scripts = [ends]
+            harness = Harness(server.port, backoff_initial=0.5, ping_interval=10.0)
+            stream = harness.stream
+            original = stream._account_disconnection
+            raised = []
+
+            def raise_once_on_the_ended(subscription):
+                if subscription.end_kind is not None and not raised:
+                    raised.append(1)
+                    raise RuntimeError("unexpected")
+                original(subscription)
+
+            stream._account_disconnection = raise_once_on_the_ended
+            async with harness:
+                await wait_until(lambda: len(server.filters) == 2)
+                await wait_until(lambda: _disconnected(harness) > 0)
+                assert raised
+                # From the socket's event: 0.4 s until it closed, then the
+                # 0.5 s wait after the error.
+                assert _disconnected(harness) == pytest.approx(0.9, abs=0.25)
+
+    run(scenario())
+
+
 @pytest.mark.parametrize("replacement_delivers", [False, True])
 def test_a_failed_step_counts_from_the_last_subscription_that_delivered(
     replacement_delivers,

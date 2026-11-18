@@ -226,20 +226,19 @@ class EventStream:
     async def _close_all(self, kind: str) -> None:
         """
         Close every open subscription, and start the disconnected time at the
-        last sign of life of the held subscription or of any that delivered.
+        last sign of life of `self._held` or of any open subscription that
+        delivered.
         """
         subscriptions = list(self.open_subscriptions)
-        # The held subscription may have ended and left the open set already.
-        # A subscription that never delivered held nothing, so its connect
-        # time is not a sign of life.
-        held = [s for s in subscriptions if s.delivering.is_set()]
+        # `self._held` may have ended and left the open set already. A
+        # replacement that never delivered is not a sign of life; its connect
+        # time would undercount.
+        alive = [s for s in subscriptions if s.delivering.is_set()]
         if self._held is not None:
-            held.append(self._held)
+            alive.append(self._held)
             self._held = None
-        if held:
-            self._note_disconnected(max(s.last_alive for s in held))
-        elif subscriptions:
-            self._note_disconnected(min(s.connected_at for s in subscriptions))
+        if alive:
+            self._note_disconnected(max(s.last_alive for s in alive))
         for subscription in subscriptions:
             await subscription.close(kind)
             self.open_subscriptions.discard(subscription)
@@ -274,8 +273,10 @@ class EventStream:
             if current.end_kind is None:
                 return current
 
-        self._held = None
         await self._after_unplanned_end(current)
+        # Cleared only after the end is handled, so an error while handling it
+        # still starts the disconnected time from this subscription.
+        self._held = None
         return None
 
     def _log_refusal(self, detail) -> None:
