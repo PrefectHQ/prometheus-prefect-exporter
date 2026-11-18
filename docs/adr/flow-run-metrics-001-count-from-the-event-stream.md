@@ -124,10 +124,10 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
 - Terminal states that happen while the exporter is down are never counted, and neither are counts a
   stopping exporter made after Prometheus last scraped it. Under the rejected server-held totals
   they would have been recovered once the exporter came back. The loss is bounded by the exporter's
-  downtime plus one scrape interval, and the exporter's process start time shows when it happened;
-  operators who need complete totals alert on changes to the process start time and on the
-  exporter's gap metric, since `up` can stay at 1 across a restart between two scrapes or while the
-  event subscription is disconnected.
+  downtime plus the time since Prometheus last scraped it successfully, and the exporter's process
+  start time shows when it happened; operators who need complete totals alert on changes to the
+  process start time and on the exporter's gap metric, since `up` can stay at 1 across a restart
+  between two scrapes or while the event subscription is disconnected.
 - A disconnection longer than the server's replay window loses the events in between. The exporter
   reports that time, and nothing recovers it.
 - Some losses are invisible to the exporter: an event the server drops while the socket stays open,
@@ -139,9 +139,9 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   made before its first scrape, because its first sample is already above zero. After a restart,
   Prometheus sees the counter drop and credits the new process's counts as a reset, unless the new
   counter reaches the old process's last value before a scrape sees it lower; then the reset goes
-  undetected and those counts are lost. Both are bounded by one scrape interval per start, and
-  created-timestamp ingestion avoids both: its injected zero makes a new series' first count and a
-  restart's reset visible.
+  undetected and those counts are lost. Both are bounded by the time until Prometheus next scrapes
+  successfully after each start, and created-timestamp ingestion avoids both: its injected zero
+  makes a new series' first count and a restart's reset visible.
 - A series the exporter did not create in advance (a run on a non-default work queue, a custom state
   name) is new to Prometheus the first time it appears, so it falls in the first case.
 - The API key needs permission to read events, which the previous exporter did not. On Prefect
