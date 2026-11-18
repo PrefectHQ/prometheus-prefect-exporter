@@ -145,6 +145,10 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   makes a new series' first count and a restart's reset visible.
 - A series the exporter did not create in advance (a run on a non-default work queue, a custom state
   name) is new to Prometheus the first time it appears, so it falls in the first case.
+- On Prefect Server, a state-change event can be published before its database transaction commits
+  ([PrefectHQ/prefect#22654](https://github.com/PrefectHQ/prefect/issues/22654)). If that
+  transaction rolls back, the exporter counts a transition that never happened, and a counter
+  cannot take it back. This is the one known overcount.
 - The API key needs permission to read events, which the previous exporter did not. On Prefect
   Server, the outbound event stream must be enabled (it is by default); with it turned off the
   exporter produces no terminal counts, and it reports this through its refused gauge.
