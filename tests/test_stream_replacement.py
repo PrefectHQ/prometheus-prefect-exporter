@@ -152,3 +152,49 @@ def test_failed_replacements_back_off_and_then_fall_back_to_no_backfill():
                 assert server.filters[5]["backfill"] is True
 
     run(scenario())
+
+
+def test_a_fresh_subscription_starts_the_replacement_backoff_over():
+    async def scenario():
+        held = []
+        attempts = []
+        mode = {"successes_left": 0}
+
+        async def first(ws, filter_message):
+            held.append(ws)
+            await ws.wait_closed()
+
+        async def default(ws, filter_message):
+            if mode["successes_left"] > 0:
+                mode["successes_left"] -= 1
+                attempts.append(("fresh", time.monotonic()))
+                await ws.send(event_message(TERMINALS[0]))
+                await ws.wait_closed()
+                return
+            attempts.append(("failed", time.monotonic()))
+            await ws.close(1001, "not now")
+
+        async with FakeEventsServer() as server:
+            server.scripts = [first]
+            server.default_script = default
+            async with Harness(
+                server.port,
+                replace_after=0.3,
+                delivering_grace=0.2,
+                backoff_initial=0.1,
+                backoff_max=2.0,
+            ) as harness:
+                # Four failed replacements of the first socket: the next
+                # retry would wait 0.8 s.
+                await wait_until(lambda: harness.stream.replacement_failures >= 4)
+                mode["successes_left"] = 1
+                await held[0].close(1001, "load balancer timeout")
+                await wait_until(lambda: any(kind == "fresh" for kind, _ in attempts))
+                fresh = next(
+                    i for i, (kind, _) in enumerate(attempts) if kind == "fresh"
+                )
+                await wait_until(lambda: len(attempts) >= fresh + 3)
+                first_retry = attempts[fresh + 2][1] - attempts[fresh + 1][1]
+                assert first_retry < 0.4
+
+    run(scenario())

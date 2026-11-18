@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import random
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -81,7 +82,6 @@ class Subscription:
         self.backfill = backfill
         self.connected_at = connected_at
         self.last_alive = connected_at
-        self.saw_event = False
         self.delivering = asyncio.Event()
         self.ended = asyncio.Event()
         self.end_kind: Optional[str] = None
@@ -150,13 +150,22 @@ class EventStream:
         self.open_subscriptions: set[Subscription] = set()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._stop: Optional[asyncio.Event] = None
+        # Set from any thread; `run` checks it once its own stop event exists.
+        self._stop_requested = threading.Event()
 
     # Lifecycle
 
     def stop_threadsafe(self) -> None:
-        """Stop `run` from another thread."""
-        if self._loop is not None and self._stop is not None:
-            self._loop.call_soon_threadsafe(self._stop.set)
+        """Stop `run` from another thread, whether or not it is running."""
+        self._stop_requested.set()
+        loop, stop = self._loop, self._stop
+        if loop is None or stop is None:
+            return
+        try:
+            loop.call_soon_threadsafe(stop.set)
+        except RuntimeError:
+            # The loop has closed: `run` already returned.
+            pass
 
     async def _sleep(self, seconds: float) -> None:
         try:
@@ -177,6 +186,8 @@ class EventStream:
         """Subscribe, and resubscribe after every close, until stopped."""
         self._loop = asyncio.get_running_loop()
         self._stop = asyncio.Event()
+        if self._stop_requested.is_set():
+            return
         if self.stream_disabled:
             self.health.refused.set(1)
             self.logger.warning(
@@ -192,13 +203,11 @@ class EventStream:
                 except Exception:
                     # A bug or an unexpected reply must not end the stream; drop
                     # the subscription and reconnect with backoff.
+                    # Close every open subscription: the failed step may have
+                    # opened one besides `current`.
+                    await self._close_all("error")
+                    current = None
                     self.logger.exception("Event stream failed; reconnecting")
-                    if current is not None:
-                        self._note_disconnected(current.last_alive)
-                        await current.close("error")
-                        self.open_subscriptions.discard(current)
-                        self._update_connected()
-                        current = None
                     self.health.reconnects.labels("error").inc()
                     self.failed_attempts += 1
                     await self._sleep(
@@ -208,9 +217,20 @@ class EventStream:
                         )
                     )
         finally:
-            for subscription in list(self.open_subscriptions):
-                await subscription.close("stopped")
-            self._update_connected()
+            await self._close_all("stopped")
+
+    async def _close_all(self, kind: str) -> None:
+        """
+        Close every open subscription, and start the disconnected time at the
+        last sign of life among them.
+        """
+        subscriptions = list(self.open_subscriptions)
+        if subscriptions:
+            self._note_disconnected(max(s.last_alive for s in subscriptions))
+        for subscription in subscriptions:
+            await subscription.close(kind)
+            self.open_subscriptions.discard(subscription)
+        self._update_connected()
 
     def _wants_backfill(self) -> bool:
         return self.backfill_failures < self.settings.backfill_failures_before_fallback
@@ -431,7 +451,6 @@ class EventStream:
 
     def _handle_event(self, subscription: Subscription, event: dict) -> None:
         now = self.wall()
-        subscription.saw_event = True
         subscription.last_alive = now
         self._mark_delivering(subscription)
         self.health.last_event_timestamp.set(now)
@@ -444,12 +463,9 @@ class EventStream:
         self._advance_cursor(event.get("occurred"), now)
 
     def _advance_cursor(self, occurred, now: float) -> None:
-        """
-        Move the backfill cursor to an event's `occurred`, after the event was
-        handled, so an event that cannot be handled is replayed rather than
-        skipped. A time ahead of the clock is clamped to now, so the next
-        backfill does not start in the future.
-        """
+        """Moves the backfill cursor to `occurred`, clamped to now."""
+        # Called only after the event was handled, so an event that raised
+        # leaves the cursor where the last handled event put it.
         if not occurred:
             return
         try:
@@ -466,6 +482,7 @@ class EventStream:
             return
         subscription.delivering.set()
         self.failed_attempts = 0
+        self.replacement_failures = 0
         if subscription.backfill:
             self.backfill_failures = 0
         if not self.stream_disabled:
@@ -584,7 +601,6 @@ class EventStream:
 
         if not backfill:
             self.backfill_failures = 0
-        self.replacement_failures = 0
         await current.close("replaced")
         self.open_subscriptions.discard(current)
         self._update_connected()

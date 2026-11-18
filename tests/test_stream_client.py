@@ -656,3 +656,116 @@ def test_a_404_handshake_is_logged_as_endpoint_not_found(caplog):
         assert "see_events" not in caplog.text
 
     run(scenario())
+
+
+def test_a_failed_step_closes_a_subscription_it_just_opened():
+    async def scenario():
+        async with FakeEventsServer() as server:
+            harness = Harness(server.port)
+            original = harness.stream._wait_for_end_or_replacement
+            calls = []
+
+            async def raise_once(subscription):
+                calls.append(1)
+                if len(calls) == 1:
+                    raise RuntimeError("unexpected")
+                await original(subscription)
+
+            harness.stream._wait_for_end_or_replacement = raise_once
+            async with harness:
+                await wait_until(lambda: server.connections == 2)
+                await wait_until(lambda: len(server.open_sockets) == 1)
+                await asyncio.sleep(0.1)
+                assert len(server.open_sockets) == 1
+                assert len(harness.stream.open_subscriptions) == 1
+
+    run(scenario())
+
+
+def test_stop_before_run_starts_keeps_it_from_connecting():
+    async def scenario():
+        async with FakeEventsServer() as server:
+            stream = Harness(server.port).stream
+            stream.stop_threadsafe()
+            await asyncio.wait_for(stream.run(), 2)
+            assert server.connections == 0
+
+    run(scenario())
+
+
+def test_stop_after_the_loop_closed_does_not_raise():
+    async def scenario(stream, server):
+        task = asyncio.create_task(stream.run())
+        await wait_until(lambda: len(server.filters) == 1)
+        stream._stop.set()
+        await task
+
+    async def with_server():
+        async with FakeEventsServer() as server:
+            harness = Harness(server.port)
+            # The stream runs on its own loop, as on the exporter's thread.
+            await asyncio.to_thread(asyncio.run, scenario(harness.stream, server))
+            harness.stream.stop_threadsafe()
+
+    run(with_server())
+
+
+def test_a_keepalive_error_ends_the_subscription_and_it_reconnects(caplog):
+    async def scenario():
+        async with FakeEventsServer() as server:
+            async with Harness(server.port) as harness:
+                await wait_until(lambda: len(harness.stream.open_subscriptions) == 1)
+                [subscription] = harness.stream.open_subscriptions
+
+                async def broken_ping(*args, **kwargs):
+                    raise RuntimeError("ping failed")
+
+                subscription.ws.ping = broken_ping
+                await wait_until(lambda: server.connections == 2)
+                assert subscription.end_kind == "error"
+                assert (
+                    harness.value(
+                        "prefect_exporter_stream_reconnects_total", reason="error"
+                    )
+                    == 1
+                )
+        assert "Event stream keepalive failed" in caplog.text
+
+    run(scenario())
+
+
+class Escape(BaseException):
+    """An exception the stream's catch-all does not catch."""
+
+
+def test_an_escaping_error_still_starts_the_disconnected_time():
+    async def scenario():
+        async with FakeEventsServer() as server:
+            harness = Harness(server.port)
+            stream = harness.stream
+            original = stream._wait_for_end_or_replacement
+
+            async def escape(subscription):
+                await asyncio.sleep(0.3)
+                raise Escape()
+
+            stream._wait_for_end_or_replacement = escape
+            with pytest.raises(Escape):
+                await stream.run()
+            assert harness.value("prefect_exporter_stream_connected") == 0
+            assert stream.disconnected_since is not None
+
+            # A restarted run accounts the time without a subscription.
+            stream._wait_for_end_or_replacement = original
+            task = asyncio.create_task(stream.run())
+            await wait_until(
+                lambda: harness.value(
+                    "prefect_exporter_stream_disconnected_seconds_total"
+                )
+                > 0
+            )
+            assert server.filters[1]["backfill"] is True
+            stream._stop.set()
+            await task
+
+    run(scenario())
