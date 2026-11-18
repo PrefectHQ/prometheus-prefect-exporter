@@ -88,8 +88,9 @@ class PrefectFlowRuns(PrefectApiMetric):
             listing = self._list_flow_runs({"flow_runs": flow_runs_filter})
             complete = complete and listing.complete
             for flow_run in listing:
-                # A run that changed state between two listings appears in both.
-                runs_by_id.setdefault(flow_run.get("id"), flow_run)
+                # A run that changed state between two listings appears in both;
+                # the listings run in order, so the later one is more recent.
+                runs_by_id[flow_run.get("id")] = flow_run
         return Listing(runs_by_id.values(), complete=complete)
 
     def get_failed_flow_runs_info(
