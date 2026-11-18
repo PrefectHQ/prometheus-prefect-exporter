@@ -1170,13 +1170,17 @@ def test_the_settings_read_repeats_at_a_replacement_until_it_answers():
 
 
 @pytest.mark.parametrize("replacement_delivers", [True, False])
+@pytest.mark.parametrize(
+    "held_end, close_code",
+    [("refused", 1008), ("backfill_failure", 1011)],
+)
 def test_a_refused_held_end_during_replacement_counts_once_as_a_server_close(
-    replacement_delivers,
+    replacement_delivers, held_end, close_code
 ):
     async def scenario():
         async def refused_later(ws, filter_message):
             await asyncio.sleep(0.4)
-            await ws.close(1008, "policy")
+            await ws.close(close_code, "server error")
 
         async def replacement(ws, filter_message):
             if replacement_delivers:
@@ -1201,6 +1205,10 @@ def test_a_refused_held_end_during_replacement_counts_once_as_a_server_close(
 
             async def slow_second_subscribe(backfill):
                 calls.append(backfill)
+                if len(calls) == 1 and held_end == "backfill_failure":
+                    # A first socket that asked for backfill, so its 1011
+                    # close before delivering is a backfill failure.
+                    backfill = True
                 if len(calls) == 2:
                     await asyncio.sleep(0.4)
                 return await original(backfill)
@@ -1209,6 +1217,7 @@ def test_a_refused_held_end_during_replacement_counts_once_as_a_server_close(
             async with harness:
                 await wait_until(lambda: len(server.filters) == 2)
                 await asyncio.sleep(0.3)
+                assert server.filters[0]["backfill"] is (held_end == "backfill_failure")
                 assert (
                     harness.value(
                         "prefect_exporter_stream_reconnects_total",
@@ -1216,12 +1225,43 @@ def test_a_refused_held_end_during_replacement_counts_once_as_a_server_close(
                     )
                     == 1
                 )
-                assert (
-                    harness.registry.get_sample_value(
-                        "prefect_exporter_stream_reconnects_total",
-                        {"reason": "refused"},
+                for reason in ("refused", "backfill_failure"):
+                    assert (
+                        harness.registry.get_sample_value(
+                            "prefect_exporter_stream_reconnects_total",
+                            {"reason": reason},
+                        )
+                        is None
                     )
-                    is None
-                )
 
     run(scenario())
+
+
+def test_only_one_settings_read_runs_at_a_time():
+    release = threading.Event()
+    reads = []
+
+    def blocking_read():
+        reads.append(1)
+        release.wait(10)
+        return None
+
+    async def scenario():
+        async with FakeEventsServer() as server:
+            server.refuse_handshake_with = 500
+            async with Harness(
+                server.port, read_stream_out_enabled=blocking_read
+            ) as harness:
+                # Several connects fail while the first read still blocks.
+                await wait_until(
+                    lambda: harness.value(
+                        "prefect_exporter_stream_reconnects_total", reason="error"
+                    )
+                    >= 3
+                )
+                assert len(reads) == 1
+
+    try:
+        run(scenario())
+    finally:
+        release.set()

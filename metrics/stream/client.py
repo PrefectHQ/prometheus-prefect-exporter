@@ -339,7 +339,8 @@ class EventStream:
         if enabled is None:
             self.logger.warning(
                 "Could not read the server's settings; assuming its event stream "
-                "is enabled and reading them again on the next connect"
+                "is enabled and reading them again on the next connect or "
+                "replacement"
             )
             return
         self.read_stream_out_enabled = None

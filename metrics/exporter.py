@@ -21,7 +21,8 @@ from metrics.stream.counters import FlowRunStreamMetrics
 
 
 STREAM_RESTART_DELAY_SECONDS = 5.0
-# One short attempt: the read repeats at the next connect if it fails.
+# One request with a 10 s timeout, after any CSRF token refresh; the read
+# repeats at the next connect or replacement if it fails.
 STREAM_SETTINGS_TIMEOUT_SECONDS = 10.0
 
 
