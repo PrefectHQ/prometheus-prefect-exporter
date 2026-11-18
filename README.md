@@ -55,9 +55,11 @@ shows one row per run in its current state instead, so its numbers differ.
 
 The exporter reports what it can see of its own completeness:
 
-- `prefect_exporter_stream_gap_seconds_total` rises when the event stream was disconnected for longer
-  than the server replays on reconnect (2 minutes on Prefect Cloud, 15 on a self-hosted server).
-  Terminal states in that time may be missing.
+- `prefect_exporter_stream_gap_seconds_total` counts the time in which terminal states may be
+  missing: the part of an outage that the server's replay on reconnect did not cover (it replays 2
+  minutes on Prefect Cloud, 15 on a self-hosted server). It is not a part of the disconnected time:
+  a reconnect that drops before it delivers ends the disconnected time but replays nothing, so the
+  gap can be longer.
 - `prefect_exporter_stream_refused` is 1 while the server refuses the subscription, or while a
   self-hosted server has its outbound event stream disabled.
 - A restarted exporter starts its counters at zero and does not replay earlier events, so nothing is
@@ -210,7 +212,7 @@ The exporter's health:
 | `prefect_exporter_stream_last_event_timestamp_seconds` | gauge | When the last event arrived |
 | `prefect_exporter_stream_reconnects_total` | counter | Reconnects, by `reason` (`server_close`, `ping_timeout`, `error`) |
 | `prefect_exporter_stream_disconnected_seconds_total` | counter | Time without a subscription |
-| `prefect_exporter_stream_gap_seconds_total` | counter | Disconnected time that the server's replay did not cover |
+| `prefect_exporter_stream_gap_seconds_total` | counter | Time in which terminal states may be missing because no replay covered it |
 | `prefect_exporter_stream_backfill_failures_total` | counter | Connects that the server closed while replaying events |
 | `prefect_exporter_stream_events_total` | counter | Events, by `outcome` (`counted`, `duplicate`, `ignored`, `malformed`); `missing_run_count` is counted in addition to an event's outcome |
 | `prefect_exporter_poll_success` | gauge | 1 if the last poll of each `poller` read everything it asked for |
