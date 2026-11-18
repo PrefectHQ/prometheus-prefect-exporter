@@ -6,24 +6,25 @@ Accepted
 
 ## Context
 
-The exporter computes its flow-run metrics from what each run's state is when Prometheus scrapes.
-`prefect_info_flow_runs` lists runs from a recent window and reports how many are in each state at
-that moment. A run can pass through a terminal state between two scrapes and never be seen in it, so
-completed, failed, crashed and cancelled counts built from these snapshots come out low. Users have
-reported Grafana counts below the Prefect UI's for the same window. The loss grows with run length,
-because the exporter lists only runs that started in the last few minutes. Run side by side on a
-Prefect-operated workspace, version 4.2.0 reported 99.2% of terminal runs that took under a minute,
-84% of runs that took 1 to 3 minutes, and 2 of 66 runs that took 3 to 10 minutes.
+Through version 4.2.0, the exporter computed its flow-run metrics from each run's state at the
+moment Prometheus scraped. `prefect_info_flow_runs` listed runs from a recent window and reported
+how many were in each state at that moment. A run could pass through a terminal state between two
+scrapes and never be seen in it, so completed, failed, crashed and cancelled counts built from these
+snapshots came out low. Users reported Grafana counts below the Prefect UI's for the same window.
+The loss grew with run length, because 4.2.0 listed only runs that started in the last few minutes.
+Run side by side on a Prefect-operated workspace, 4.2.0 reported 99.2% of terminal runs that took
+under a minute, 84% of runs that took 1 to 3 minutes, and 2 of 66 runs that took 3 to 10 minutes.
 
-The same model makes scrapes expensive. Every scrape pages through `/flow_runs/filter`, and a page
-that fails partway leaves the metrics short with no signal that anything went wrong.
+The same model made 4.2.0's scrapes expensive. Every scrape paged through `/flow_runs/filter`, and a
+page that failed partway left the metrics short with no signal that anything went wrong.
 
 Every flow-run state change already produces a Prefect event, and Prefect Cloud and Prefect Server
 both stream events to API clients over the `/events/out` websocket.
 
 ## Decision
 
-The exporter counts flow-run terminal states from the `/events/out` stream, in the exporter process.
+From version 5.0, the exporter counts flow-run terminal states from the `/events/out` stream, in the
+exporter process.
 
 - One subscription per exporter receives `prefect.flow-run.*` events, excluding heartbeats and
   pull-step events. Every nine minutes, before Prefect Cloud's connection time limit, the exporter
