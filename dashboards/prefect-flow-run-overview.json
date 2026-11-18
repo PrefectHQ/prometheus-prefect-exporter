@@ -356,7 +356,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(prefect_info_flow_runs == 1)",
+          "expr": "sum(prefect_flow_runs_current{state_type=\"RUNNING\"})",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -421,14 +421,14 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "count(prefect_info_flow_runs)",
+          "expr": "sum(increase(prefect_flow_runs_terminal_total[$__range]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Flow Runs total",
+      "title": "Flow Runs finished",
       "type": "stat"
     },
     {
@@ -485,7 +485,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "avg(prefect_flow_runs_total_run_time)",
+          "expr": "sum(rate(prefect_flow_run_duration_seconds_sum[$__range])) / sum(rate(prefect_flow_run_duration_seconds_count[$__range]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -617,14 +617,14 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "count by (state_name) (prefect_info_flow_runs)",
+          "expr": "sum by (state_name) (increase(prefect_flow_runs_terminal_total[$__range]))",
           "instant": false,
           "legendFormat": "{{label_name}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Flow Runs by state",
+      "title": "Flow Runs finished by state",
       "type": "piechart"
     },
     {
@@ -695,14 +695,14 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "count(prefect_info_flow_runs{flow_name=~\"$flow_name\"})",
+          "expr": "sum(increase(prefect_flow_runs_terminal_total{flow_name=~\"$flow_name\"}[$__range]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Flow Runs total",
+      "title": "Flow Runs finished",
       "type": "stat"
     },
     {
@@ -739,42 +739,6 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "created"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dateTimeAsIso"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "name"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 201
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "spent time"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "state"
             },
             "properties": [
@@ -790,67 +754,32 @@
                 "value": [
                   {
                     "options": {
-                      "Cancelled": {
-                        "color": "orange",
-                        "index": 2
-                      },
-                      "Completed": {
-                        "color": "green",
+                      "Scheduled": {
+                        "color": "text",
                         "index": 0
                       },
-                      "Crashed": {
-                        "color": "red",
-                        "index": 3
-                      },
-                      "Failed": {
-                        "color": "red",
+                      "Late": {
+                        "color": "orange",
                         "index": 1
+                      },
+                      "Pending": {
+                        "color": "yellow",
+                        "index": 2
                       },
                       "Running": {
                         "color": "blue",
+                        "index": 3
+                      },
+                      "Paused": {
+                        "color": "purple",
                         "index": 4
+                      },
+                      "Cancelling": {
+                        "color": "orange",
+                        "index": 5
                       }
                     },
                     "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "start_time"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dateTimeAsIso"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "end_time"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dateTimeAsIso"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "match": "nan",
-                      "result": {
-                        "index": 0,
-                        "text": "-"
-                      }
-                    },
-                    "type": "special"
                   }
                 ]
               }
@@ -871,7 +800,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "flow_run_name"
+              "options": "run"
             },
             "properties": [
               {
@@ -914,7 +843,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "prefect_info_flow_runs{state_name=~\"$flow_run_state_name\", flow_name=~\"$flow_name\"}",
+          "expr": "prefect_flow_runs_current{state_name=~\"$flow_run_state_name\", flow_name=~\"$flow_name\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -928,61 +857,32 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "Value": true,
               "__name__": true,
               "container": true,
-              "created": false,
-              "deployment_id": true,
-              "deployment_name": true,
               "endpoint": true,
-              "flow_id": true,
-              "flow_name": true,
-              "flow_run_id": true,
               "instance": true,
               "job": true,
-              "name": false,
               "namespace": true,
               "pod": true,
-              "service": true,
-              "start_time": false,
-              "state_id": true,
-              "updated": true,
-              "work_queue_name": true
+              "service": true
             },
             "indexByName": {
-              "Time": 8,
-              "Value": 22,
-              "__name__": 9,
-              "container": 10,
-              "created": 18,
-              "deployment_id": 6,
-              "deployment_name": 7,
-              "end_time": 20,
-              "endpoint": 11,
-              "flow_id": 4,
-              "flow_name": 5,
-              "flow_run_id": 1,
-              "flow_run_name": 0,
-              "instance": 12,
-              "job": 13,
-              "namespace": 14,
-              "pod": 15,
-              "prefect_info_flow_runs": 23,
-              "run_count": 2,
-              "service": 16,
-              "start_time": 19,
-              "state_id": 21,
-              "total_run_time": 3,
-              "work_queue_name": 17
+              "deployment_name": 0,
+              "flow_name": 1,
+              "work_queue_name": 2,
+              "state_type": 3,
+              "state_name": 4,
+              "flow_run_name": 5,
+              "Value": 6
             },
             "renameByName": {
-              "is_schedule_active": "scheduled",
-              "job": "",
-              "prefect_info_flow_runs": "state",
-              "run_count": "runs",
-              "start_time": "",
+              "deployment_name": "deployment",
+              "flow_name": "flow",
+              "work_queue_name": "work queue",
+              "state_type": "state type",
               "state_name": "state",
-              "total_run_time": "spent time"
+              "flow_run_name": "run",
+              "Value": "runs"
             }
           }
         }
@@ -1185,7 +1085,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "avg by (flow_name) (prefect_flow_runs_total_run_time{flow_name=~\"$flow_name\"})",
+          "expr": "sum by (flow_name) (rate(prefect_flow_run_duration_seconds_sum{flow_name=~\"$flow_name\"}[$__range])) / sum by (flow_name) (rate(prefect_flow_run_duration_seconds_count{flow_name=~\"$flow_name\"}[$__range]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -1282,14 +1182,14 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "avg by (flow_name) (prefect_flow_runs_total_run_time{flow_name=~\"$flow_name\"})",
+          "expr": "sum by (flow_name) (rate(prefect_flow_run_duration_seconds_sum{flow_name=~\"$flow_name\"}[$__rate_interval])) / sum by (flow_name) (rate(prefect_flow_run_duration_seconds_count{flow_name=~\"$flow_name\"}[$__rate_interval]))",
           "instant": false,
           "legendFormat": "{{flow_run_name}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Flow Run total run time",
+      "title": "Flow Run average run time",
       "type": "timeseries"
     },
     {
@@ -2146,7 +2046,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(prefect_info_flow_runs{flow_name=\"$flow_name\"},flow_run_name)",
+        "definition": "label_values(prefect_flow_runs_current{flow_name=\"$flow_name\"},flow_run_name)",
         "hide": 0,
         "includeAll": false,
         "label": "Flow Run Name",
@@ -2154,7 +2054,7 @@
         "name": "flow_run_name",
         "options": [],
         "query": {
-          "query": "label_values(prefect_info_flow_runs{flow_name=\"$flow_name\"},flow_run_name)",
+          "query": "label_values(prefect_flow_runs_current{flow_name=\"$flow_name\"},flow_run_name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -2169,7 +2069,7 @@
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
         },
-        "definition": "label_values(prefect_info_flow_runs,state_name)",
+        "definition": "label_values(prefect_flow_runs_current,state_name)",
         "hide": 0,
         "includeAll": true,
         "label": "Flow Run State",
@@ -2177,7 +2077,7 @@
         "name": "flow_run_state_name",
         "options": [],
         "query": {
-          "query": "label_values(prefect_info_flow_runs,state_name)",
+          "query": "label_values(prefect_flow_runs_current,state_name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,

@@ -18,7 +18,13 @@ services:
       - --port
       - "4200"
     healthcheck:
-      test: ["CMD-SHELL", "prefect version"]
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')
+      interval: 5s
+      retries: 24
 
   prometheus-exporter:
     build:

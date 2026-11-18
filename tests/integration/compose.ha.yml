@@ -1,0 +1,91 @@
+---
+# Two Prefect API replicas behind a round-robin proxy, sharing PostgreSQL and
+# the Redis message broker, for the integration tests:
+#
+#   docker compose -f tests/integration/compose.ha.yml up -d --wait
+#   PREFECT_INTEGRATION_API_URL=http://localhost:4280/api pytest -m integration
+x-prefect: &prefect
+  # The Prefect release the integration tests were last run against.
+  image: prefecthq/prefect:3.9.0-python3.12
+  environment: &prefect-environment
+    EXTRA_PIP_PACKAGES: prefect-redis
+    PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+    PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+    PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+    PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
+    PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
+    PREFECT_REDIS_MESSAGING_HOST: redis
+    PREFECT_REDIS_MESSAGING_PORT: "6379"
+    PREFECT_SERVER_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL: PT10S
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+x-api-healthcheck: &api-healthcheck
+  test:
+    - CMD
+    - python
+    - -c
+    - import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')
+  interval: 5s
+  retries: 60
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect
+      POSTGRES_DB: prefect
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prefect"]
+      interval: 2s
+      retries: 30
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 30
+
+  migrate:
+    <<: *prefect
+    command: ["prefect", "server", "database", "upgrade", "-y"]
+
+  api-1: &api
+    <<: *prefect
+    command: ["prefect", "server", "start", "--host", "0.0.0.0", "--port", "4200", "--no-services"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck: *api-healthcheck
+
+  # Started after api-1, because two replicas registering the default block
+  # types at once collide on a unique constraint.
+  api-2:
+    <<: *api
+    depends_on:
+      api-1:
+        condition: service_healthy
+
+  services:
+    <<: *prefect
+    command: ["prefect", "server", "services", "start"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  proxy:
+    image: nginx:1.27
+    ports:
+      - "4280:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api-1:
+        condition: service_healthy
+      api-2:
+        condition: service_healthy

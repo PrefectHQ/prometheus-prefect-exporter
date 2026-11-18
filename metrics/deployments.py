@@ -1,4 +1,4 @@
-from metrics.api_metric import PrefectApiMetric
+from metrics.api_metric import Listing, PrefectApiMetric
 
 
 class PrefectDeployments(PrefectApiMetric):
@@ -6,48 +6,14 @@ class PrefectDeployments(PrefectApiMetric):
     PrefectDeployments class for interacting with Prefect's deployments endpoints.
     """
 
-    def __init__(
-        self,
-        url,
-        headers,
-        max_retries,
-        logger,
-        enable_pagination,
-        pagination_limit,
-        timeout,
-        uri="deployments",
-    ) -> None:
-        """
-        Initialize the PrefectDeployments instance.
+    uri = "deployments"
+    default_sort = "NAME_ASC"
 
-        Args:
-            url (str): The URL of the Prefect instance.
-            headers (dict): Headers to be included in HTTP requests.
-            max_retries (int): The maximum number of retries for HTTP requests.
-            logger (obj): The logger object.
-            uri (str, optional): The URI path for deployments endpoints. Default is "deployments".
-            pagination_limit (int): The maximum number of pages to fetch.
-            timeout (float): Timeout in seconds for each HTTP request.
-        """
-        super().__init__(
-            url=url,
-            headers=headers,
-            max_retries=max_retries,
-            logger=logger,
-            enable_pagination=enable_pagination,
-            pagination_limit=pagination_limit,
-            uri=uri,
-            timeout=timeout,
-        )
-
-    def get_deployments_info(self) -> list:
+    def get_deployments_info(self) -> Listing:
         """
         Get information about Prefect deployments.
 
         Returns:
-            dict: JSON response containing information about deployments.
-
+            Listing: Every deployment the listing returned.
         """
-        all_deployments = self._get_with_pagination()
-
-        return all_deployments
+        return self._get_with_pagination()

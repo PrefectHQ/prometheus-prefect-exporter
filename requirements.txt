@@ -1,4 +1,3 @@
 requests==2.34.2
 prometheus_client==0.26.0
-pendulum==3.3.0
-prefect==3.9.2
+websockets==17.4
