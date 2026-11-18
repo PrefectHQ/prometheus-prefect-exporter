@@ -137,7 +137,9 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   ingests created timestamps.
 - A series the exporter did not create in advance (a run on a non-default work queue, a custom state
   name) loses its first count after each exporter start.
-- The API key needs permission to read events, which the previous exporter did not.
+- The API key needs permission to read events, which the previous exporter did not. On Prefect
+  Server, the outbound event stream must be enabled (it is by default); with it turned off the
+  exporter produces no terminal counts, and it reports this through its refused gauge.
 - Upgrading removes three metrics. Dashboards and alerts that use them stop returning data until
   they are rewritten, and an alert on a removed metric stops firing.
 - The per-state counts differ by definition from the Prefect UI, which counts each run once in its
