@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import random
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -1109,6 +1111,117 @@ def test_a_held_end_counted_during_a_failed_replacement_is_counted_once():
                         reason="server_close",
                     )
                     == 1
+                )
+
+    run(scenario())
+
+
+def test_a_hanging_settings_read_delays_neither_connect_nor_stop():
+    release = threading.Event()
+
+    def hanging_read():
+        release.wait(10)
+        return None
+
+    async def scenario(server):
+        stream = Harness(server.port, read_stream_out_enabled=hanging_read).stream
+        task = asyncio.create_task(stream.run())
+        started = time.monotonic()
+        await wait_until(lambda: len(server.filters) == 1)
+        assert time.monotonic() - started < 0.5
+        stopped = time.monotonic()
+        stream._stop.set()
+        await task
+        assert time.monotonic() - stopped < 1.0
+
+    async def with_server():
+        async with FakeEventsServer() as server:
+            # asyncio.run on its own thread, as on the exporter's thread: its
+            # exit must not wait for the read.
+            started = time.monotonic()
+            await asyncio.to_thread(asyncio.run, scenario(server))
+            assert time.monotonic() - started < 2.0
+
+    try:
+        run(with_server())
+    finally:
+        release.set()
+
+
+def test_the_settings_read_repeats_at_a_replacement_until_it_answers():
+    async def scenario():
+        answers = iter([None, False])
+
+        async with FakeEventsServer() as server:
+            async with Harness(
+                server.port,
+                replace_after=0.3,
+                read_stream_out_enabled=lambda: next(answers),
+            ) as harness:
+                await wait_until(
+                    lambda: harness.value("prefect_exporter_stream_refused") == 1
+                )
+                await wait_until(lambda: len(server.filters) == 2)
+                # Answered at the replacement, with no reconnect.
+                assert server.connections == 2
+                assert server.filters[1]["backfill"] is True
+
+    run(scenario())
+
+
+@pytest.mark.parametrize("replacement_delivers", [True, False])
+def test_a_refused_held_end_during_replacement_counts_once_as_a_server_close(
+    replacement_delivers,
+):
+    async def scenario():
+        async def refused_later(ws, filter_message):
+            await asyncio.sleep(0.4)
+            await ws.close(1008, "policy")
+
+        async def replacement(ws, filter_message):
+            if replacement_delivers:
+                await ws.send(event_message(TERMINALS[0]))
+                await ws.wait_closed()
+            else:
+                await asyncio.sleep(0.05)
+                await ws.close(1001)
+
+        async with FakeEventsServer() as server:
+            server.scripts = [refused_later, replacement]
+            harness = Harness(
+                server.port,
+                replace_after=0.2,
+                delivering_grace=1.0,
+                refusal_retry=0.2,
+                ping_interval=10.0,
+            )
+            stream = harness.stream
+            original = stream._subscribe
+            calls = []
+
+            async def slow_second_subscribe(backfill):
+                calls.append(backfill)
+                if len(calls) == 2:
+                    await asyncio.sleep(0.4)
+                return await original(backfill)
+
+            stream._subscribe = slow_second_subscribe
+            async with harness:
+                await wait_until(lambda: len(server.filters) == 2)
+                await asyncio.sleep(0.3)
+                assert (
+                    harness.value(
+                        "prefect_exporter_stream_reconnects_total",
+                        reason="server_close",
+                    )
+                    == 1
+                )
+                assert (
+                    harness.registry.get_sample_value(
+                        "prefect_exporter_stream_reconnects_total",
+                        {"reason": "refused"},
+                    )
+                    is None
                 )
 
     run(scenario())

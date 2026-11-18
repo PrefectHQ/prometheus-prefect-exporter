@@ -73,8 +73,8 @@ class StreamHealth:
         )
         self.gap_seconds = Counter(
             "prefect_exporter_stream_gap_seconds",
-            "Disconnected time that backfill did not cover, where terminal "
-            "states may be missing from the counts",
+            "Time in which terminal states may be missing from the counts, "
+            "because no replay from the server covered it",
             registry=registry,
         )
         self.backfill_failures = Counter(
