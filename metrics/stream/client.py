@@ -130,8 +130,9 @@ class EventStream:
             logger (logging.Logger): The logger.
             read_stream_out_enabled (callable, optional): Reads whether the
                 server streams events out, returning None when it cannot tell.
-                Called before connecting until it answers; a server with the
-                stream off is reported as refused.
+                Run on a daemon thread at each connect and replacement until
+                it answers, without delaying them; a server with the stream
+                off is reported as refused.
             wall (callable): The current time in seconds since the epoch.
             rng (random.Random, optional): The source of backoff jitter.
         """
@@ -142,6 +143,7 @@ class EventStream:
         self.logger = logger
         self.read_stream_out_enabled = read_stream_out_enabled
         self.stream_disabled = False
+        self._settings_read: Optional[threading.Thread] = None
         self.wall = wall
         self.rng = rng or random.Random()
         self.url = events_out_url(settings.api_url)
@@ -299,15 +301,46 @@ class EventStream:
             self.settings.refusal_hint,
         )
 
-    async def _check_stream_out(self) -> None:
-        """Read the server's outbound stream setting until it answers."""
+    def _start_settings_read(self) -> None:
+        """
+        Start reading the server's outbound stream setting, unless it already
+        answered or a read is still running.
+        """
+        read = self.read_stream_out_enabled
+        if read is None:
+            return
+        if self._settings_read is not None and self._settings_read.is_alive():
+            return
+        loop = asyncio.get_running_loop()
+
+        def read_and_report() -> None:
+            try:
+                enabled = read()
+            except Exception:
+                self.logger.exception("Reading the server's settings failed")
+                enabled = None
+            try:
+                loop.call_soon_threadsafe(self._apply_stream_out, enabled)
+            except RuntimeError:
+                # The stream's loop has closed.
+                pass
+
+        # A daemon thread, not the loop's executor: asyncio.run waits for the
+        # executor's threads at exit, and a read of an unreachable host must
+        # not hold a stop.
+        self._settings_read = threading.Thread(
+            target=read_and_report, name="stream-settings-read", daemon=True
+        )
+        self._settings_read.start()
+
+    def _apply_stream_out(self, enabled: Optional[bool]) -> None:
         if self.read_stream_out_enabled is None:
             return
-        enabled = await asyncio.to_thread(self.read_stream_out_enabled)
         if enabled is None:
             self.logger.warning(
                 "Could not read the server's settings; assuming its event stream "
-                "is enabled and reading them again on the next connect"
+                "is enabled and reading them again on the next connect or "
+                "replacement"
             )
             return
         self.read_stream_out_enabled = None
@@ -320,7 +353,7 @@ class EventStream:
             )
 
     async def _connect(self, backfill: bool) -> Optional[Subscription]:
-        await self._check_stream_out()
+        self._start_settings_read()
         attempt_started = self.wall()
         try:
             return await self._subscribe(backfill)
@@ -581,10 +614,14 @@ class EventStream:
         self.open_subscriptions.discard(subscription)
         self._update_connected()
 
+        # An end already counted as a reconnect, while a replacement
+        # connected, is not counted again.
+        count_reconnect = not subscription.end_counted
         if kind == "backfill_failure":
             self.backfill_failures += 1
             self.health.backfill_failures.inc()
-            self.health.reconnects.labels("server_close").inc()
+            if count_reconnect:
+                self.health.reconnects.labels("server_close").inc()
             self.logger.warning(
                 "The server closed the event stream while replaying backfill "
                 "(%d in a row)",
@@ -593,7 +630,8 @@ class EventStream:
             self._note_disconnected(subscription.connected_at)
         elif kind == "refused":
             self.health.refused.set(1)
-            self.health.reconnects.labels("server_close").inc()
+            if count_reconnect:
+                self.health.reconnects.labels("server_close").inc()
             self._note_disconnected(subscription.connected_at)
             self._log_refusal(subscription.ws.close_reason or "closed")
             await self._sleep(self.settings.refusal_retry)
@@ -604,7 +642,7 @@ class EventStream:
             # accounted; the gap start stays where it was.
             self._account_disconnection(subscription, delivered=False)
             self._note_disconnected(subscription.last_alive)
-            if not subscription.end_counted:
+            if count_reconnect:
                 self.health.reconnects.labels(kind).inc()
             self.logger.warning("The event stream closed (%s); reconnecting", kind)
 
@@ -621,6 +659,7 @@ class EventStream:
             Subscription: The new subscription, or None if it failed; then
             `current` is kept and the replacement is tried again later.
         """
+        self._start_settings_read()
         backfill = self._wants_backfill()
         try:
             replacement = await self._subscribe(backfill=backfill)
@@ -632,6 +671,8 @@ class EventStream:
             # `current` ended before the replacement connected, so the stream
             # was disconnected in between.
             self._note_disconnected(current.last_alive)
+            # A refused or backfill-failed end is a server close as a
+            # reconnect reason.
             reason = current.end_kind
             if reason not in ("server_close", "ping_timeout", "error"):
                 reason = "server_close"
@@ -661,8 +702,6 @@ class EventStream:
 
         if not backfill:
             self.backfill_failures = 0
-        # A socket that already ended keeps its end kind; close() does not
-        # replace it.
         await current.close("replaced")
         self.open_subscriptions.discard(current)
         self._update_connected()

@@ -203,3 +203,18 @@ def test_failed_listing_makes_the_poll_incomplete():
     responses.add(responses.POST, f"{URL}/flow_runs/filter", status=500)
 
     assert _poller().poll().complete is False
+
+
+@responses.activate
+def test_a_run_seen_in_two_listings_is_reported_in_its_later_state():
+    # Listed while Pending, then again by the later RUNNING listing.
+    _register(
+        [
+            _run("r1", "PENDING", "Pending"),
+            _run("r1", "RUNNING", "Running", start_time="2026-11-17T11:59:00+00:00"),
+        ]
+    )
+
+    samples = _samples(_poller().poll(), "prefect_flow_runs_current")
+
+    assert [(dict(k)["state_type"], v) for k, v in samples.items()] == [("RUNNING", 1)]

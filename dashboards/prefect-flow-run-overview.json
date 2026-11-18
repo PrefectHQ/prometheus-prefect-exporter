@@ -754,67 +754,32 @@
                 "value": [
                   {
                     "options": {
-                      "Cancelled": {
-                        "color": "orange",
-                        "index": 2
-                      },
-                      "Completed": {
-                        "color": "green",
+                      "Scheduled": {
+                        "color": "text",
                         "index": 0
                       },
-                      "Crashed": {
-                        "color": "red",
-                        "index": 3
-                      },
-                      "Failed": {
-                        "color": "red",
+                      "Late": {
+                        "color": "orange",
                         "index": 1
+                      },
+                      "Pending": {
+                        "color": "yellow",
+                        "index": 2
                       },
                       "Running": {
                         "color": "blue",
+                        "index": 3
+                      },
+                      "Paused": {
+                        "color": "purple",
                         "index": 4
+                      },
+                      "Cancelling": {
+                        "color": "orange",
+                        "index": 5
                       }
                     },
                     "type": "value"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "start_time"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dateTimeAsIso"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "end_time"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dateTimeAsIso"
-              },
-              {
-                "id": "mappings",
-                "value": [
-                  {
-                    "options": {
-                      "match": "nan",
-                      "result": {
-                        "index": 0,
-                        "text": "-"
-                      }
-                    },
-                    "type": "special"
                   }
                 ]
               }
@@ -835,7 +800,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "flow_run_name"
+              "options": "run"
             },
             "properties": [
               {

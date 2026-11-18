@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 import pytest
+import requests
 import responses
 from prometheus_client import CollectorRegistry, generate_latest
 
@@ -381,3 +382,45 @@ def test_stream_thread_restarts_a_stream_that_raised(monkeypatch):
 
     assert len(runs) == 2
     assert not exporter.stream_thread.is_alive()
+
+
+@responses.activate
+def test_the_settings_read_is_one_short_attempt():
+    url = "http://prefect.test/api"
+    responses.add(
+        responses.GET,
+        f"{url}/admin/settings",
+        body=requests.exceptions.ConnectTimeout("unreachable"),
+    )
+    exporter = Exporter(
+        Config.from_env({"PREFECT_API_URL": url, "MAX_RETRIES": "3"}),
+        CollectorRegistry(),
+        logging.getLogger("test"),
+    )
+
+    assert exporter.stream.read_stream_out_enabled() is None
+    assert len(responses.calls) == 1
+    assert responses.calls[0].request.req_kwargs["timeout"] == 10.0
+
+
+def test_stop_waits_at_most_its_timeout_in_all(monkeypatch):
+    monkeypatch.setattr(
+        "metrics.exporter.PrefectAdmin.stream_out_enabled", lambda self: True
+    )
+    exporter = Exporter(
+        Config.from_env({}), CollectorRegistry(), logging.getLogger("test")
+    )
+    release = threading.Event()
+    for thread in (exporter.stream_thread, *exporter.loops):
+        # Stand-ins for threads blocked on an unreachable API.
+        thread.run = lambda: release.wait(10)
+        thread.start()
+
+    started = time.monotonic()
+    try:
+        exporter.stop(timeout=0.3)
+        elapsed = time.monotonic() - started
+    finally:
+        release.set()
+
+    assert elapsed < 0.6

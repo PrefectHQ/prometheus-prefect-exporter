@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import random
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -1112,3 +1114,154 @@ def test_a_held_end_counted_during_a_failed_replacement_is_counted_once():
                 )
 
     run(scenario())
+
+
+def test_a_hanging_settings_read_delays_neither_connect_nor_stop():
+    release = threading.Event()
+
+    def hanging_read():
+        release.wait(10)
+        return None
+
+    async def scenario(server):
+        stream = Harness(server.port, read_stream_out_enabled=hanging_read).stream
+        task = asyncio.create_task(stream.run())
+        started = time.monotonic()
+        await wait_until(lambda: len(server.filters) == 1)
+        assert time.monotonic() - started < 0.5
+        stopped = time.monotonic()
+        stream._stop.set()
+        await task
+        assert time.monotonic() - stopped < 1.0
+
+    async def with_server():
+        async with FakeEventsServer() as server:
+            # asyncio.run on its own thread, as on the exporter's thread: its
+            # exit must not wait for the read.
+            started = time.monotonic()
+            await asyncio.to_thread(asyncio.run, scenario(server))
+            assert time.monotonic() - started < 2.0
+
+    try:
+        run(with_server())
+    finally:
+        release.set()
+
+
+def test_the_settings_read_repeats_at_a_replacement_until_it_answers():
+    async def scenario():
+        answers = iter([None, False])
+
+        async with FakeEventsServer() as server:
+            async with Harness(
+                server.port,
+                replace_after=0.3,
+                read_stream_out_enabled=lambda: next(answers),
+            ) as harness:
+                await wait_until(
+                    lambda: harness.value("prefect_exporter_stream_refused") == 1
+                )
+                await wait_until(lambda: len(server.filters) == 2)
+                # Answered at the replacement, with no reconnect.
+                assert server.connections == 2
+                assert server.filters[1]["backfill"] is True
+
+    run(scenario())
+
+
+@pytest.mark.parametrize("replacement_delivers", [True, False])
+@pytest.mark.parametrize(
+    "held_end, close_code",
+    [("refused", 1008), ("backfill_failure", 1011)],
+)
+def test_a_refused_held_end_during_replacement_counts_once_as_a_server_close(
+    replacement_delivers, held_end, close_code
+):
+    async def scenario():
+        async def refused_later(ws, filter_message):
+            await asyncio.sleep(0.4)
+            await ws.close(close_code, "server error")
+
+        async def replacement(ws, filter_message):
+            if replacement_delivers:
+                await ws.send(event_message(TERMINALS[0]))
+                await ws.wait_closed()
+            else:
+                await asyncio.sleep(0.05)
+                await ws.close(1001)
+
+        async with FakeEventsServer() as server:
+            server.scripts = [refused_later, replacement]
+            harness = Harness(
+                server.port,
+                replace_after=0.2,
+                delivering_grace=1.0,
+                refusal_retry=0.2,
+                ping_interval=10.0,
+            )
+            stream = harness.stream
+            original = stream._subscribe
+            calls = []
+
+            async def slow_second_subscribe(backfill):
+                calls.append(backfill)
+                if len(calls) == 1 and held_end == "backfill_failure":
+                    # A first socket that asked for backfill, so its 1011
+                    # close before delivering is a backfill failure.
+                    backfill = True
+                if len(calls) == 2:
+                    await asyncio.sleep(0.4)
+                return await original(backfill)
+
+            stream._subscribe = slow_second_subscribe
+            async with harness:
+                await wait_until(lambda: len(server.filters) == 2)
+                await asyncio.sleep(0.3)
+                assert server.filters[0]["backfill"] is (held_end == "backfill_failure")
+                assert (
+                    harness.value(
+                        "prefect_exporter_stream_reconnects_total",
+                        reason="server_close",
+                    )
+                    == 1
+                )
+                for reason in ("refused", "backfill_failure"):
+                    assert (
+                        harness.registry.get_sample_value(
+                            "prefect_exporter_stream_reconnects_total",
+                            {"reason": reason},
+                        )
+                        is None
+                    )
+
+    run(scenario())
+
+
+def test_only_one_settings_read_runs_at_a_time():
+    release = threading.Event()
+    reads = []
+
+    def blocking_read():
+        reads.append(1)
+        release.wait(10)
+        return None
+
+    async def scenario():
+        async with FakeEventsServer() as server:
+            server.refuse_handshake_with = 500
+            async with Harness(
+                server.port, read_stream_out_enabled=blocking_read
+            ) as harness:
+                # Several connects fail while the first read still blocks.
+                await wait_until(
+                    lambda: harness.value(
+                        "prefect_exporter_stream_reconnects_total", reason="error"
+                    )
+                    >= 3
+                )
+                assert len(reads) == 1
+
+    try:
+        run(scenario())
+    finally:
+        release.set()

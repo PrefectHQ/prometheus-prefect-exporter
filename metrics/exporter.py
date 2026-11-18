@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import threading
+import time
 import uuid
 
 from prometheus_client import CollectorRegistry
@@ -20,6 +21,9 @@ from metrics.stream.counters import FlowRunStreamMetrics
 
 
 STREAM_RESTART_DELAY_SECONDS = 5.0
+# One request with a 10 s timeout, after any CSRF token refresh; the read
+# repeats at the next connect or replacement if it fails.
+STREAM_SETTINGS_TIMEOUT_SECONDS = 10.0
 
 
 class Exporter:
@@ -121,7 +125,13 @@ class Exporter:
             read_stream_out_enabled=(
                 None
                 if config.is_cloud
-                else PrefectAdmin(**self.api_kwargs).stream_out_enabled
+                else PrefectAdmin(
+                    **{
+                        **self.api_kwargs,
+                        "max_retries": 1,
+                        "timeout": STREAM_SETTINGS_TIMEOUT_SECONDS,
+                    }
+                ).stream_out_enabled
             ),
         )
         self.stream_thread = threading.Thread(
@@ -145,8 +155,13 @@ class Exporter:
             loop.start()
 
     def stop(self, timeout: float = 10.0) -> None:
+        """
+        Stop the background work, waiting at most `timeout` seconds in all.
+        Threads still blocked on the API after that are daemon threads and end
+        with the process.
+        """
+        deadline = time.monotonic() + timeout
         self.stop_event.set()
         self.stream.stop_threadsafe()
-        self.stream_thread.join(timeout)
-        for loop in self.loops:
-            loop.join(timeout)
+        for thread in (self.stream_thread, *self.loops):
+            thread.join(max(0.0, deadline - time.monotonic()))
