@@ -769,3 +769,112 @@ def test_an_escaping_error_still_starts_the_disconnected_time():
             await task
 
     run(scenario())
+
+
+def _disconnected(harness):
+    return harness.value("prefect_exporter_stream_disconnected_seconds_total")
+
+
+@pytest.mark.parametrize(
+    "held_from, closes_after",
+    # The held socket closes while the failing replacement step waits: the
+    # step that opened it fails at 0.2 s, or a later step at 0.7 s.
+    [("same_step", 0.4), ("earlier_step", 0.9)],
+)
+def test_a_failed_step_after_the_held_socket_ended_still_counts_the_disconnection(
+    held_from, closes_after
+):
+    async def scenario():
+        async def ends_during_replacement(ws, filter_message):
+            await ws.send(event_message(TERMINALS[0]))
+            await asyncio.sleep(closes_after)
+            await ws.close(1001)
+
+        async with FakeEventsServer() as server:
+            server.scripts = [ends_during_replacement]
+            # No pongs, so the held socket's last sign of life is its event,
+            # and a 0.5 s wait follows the error.
+            harness = Harness(
+                server.port,
+                replace_after=0.2,
+                backoff_initial=0.5,
+                ping_interval=10.0,
+            )
+            stream = harness.stream
+            calls = []
+            failed = []
+
+            async def replace_then_fail(current):
+                calls.append(1)
+                if held_from == "earlier_step" and len(calls) == 1:
+                    # Keep the socket; the step returns and holds it.
+                    stream._retry_replacement_later(current)
+                    return None
+                if not failed:
+                    failed.append(1)
+                    await current.ended.wait()
+                    raise RuntimeError("unexpected")
+                await stream._stop.wait()
+                return None
+
+            stream._replace = replace_then_fail
+            async with harness:
+                await wait_until(lambda: len(server.filters) == 2)
+                await wait_until(lambda: _disconnected(harness) > 0)
+                # From the held socket's event to the reconnect: until it
+                # closed, then the 0.5 s wait.
+                assert _disconnected(harness) == pytest.approx(
+                    closes_after + 0.5, abs=0.25
+                )
+
+    run(scenario())
+
+
+@pytest.mark.parametrize("replacement_delivers", [False, True])
+def test_a_failed_step_counts_from_the_last_subscription_that_delivered(
+    replacement_delivers,
+):
+    async def scenario():
+        async def held(ws, filter_message):
+            await ws.send(event_message(TERMINALS[0]))
+            await ws.wait_closed()
+
+        async def replacement(ws, filter_message):
+            if replacement_delivers:
+                await asyncio.sleep(0.6)
+                await ws.send(event_message(TERMINALS[1]))
+            await ws.wait_closed()
+
+        async with FakeEventsServer() as server:
+            server.scripts = [held, replacement]
+            # No pongs, so each subscription's last sign of life is its event.
+            harness = Harness(
+                server.port,
+                replace_after=0.6,
+                delivering_grace=10.0,
+                backoff_initial=0.3,
+                backoff_max=0.3,
+                ping_interval=10.0,
+            )
+            stream = harness.stream
+
+            async def open_replacement_then_fail(current):
+                new = await stream._subscribe(backfill=True)
+                if replacement_delivers:
+                    await new.delivering.wait()
+                raise RuntimeError("unexpected")
+
+            stream._replace = open_replacement_then_fail
+            async with harness:
+                await wait_until(lambda: len(server.filters) == 3)
+                # The reconnect has not delivered (no event, long grace), so
+                # the start the error path recorded is still pending.
+                last_event = harness.value(
+                    "prefect_exporter_stream_last_event_timestamp_seconds"
+                )
+                # The last event came on the held socket, or on the replacement
+                # once it delivered; the replacement's connect is later than
+                # either and must not be used.
+                assert stream.disconnected_since == pytest.approx(last_event, abs=0.05)
+
+    run(scenario())

@@ -152,6 +152,10 @@ class EventStream:
         self._stop: Optional[asyncio.Event] = None
         # Set from any thread; `run` checks it once its own stop event exists.
         self._stop_requested = threading.Event()
+        # The subscription the stream holds, set as soon as a step opens or
+        # replaces one, so the error handler can read it even when the step
+        # fails before returning it.
+        self._held: Optional[Subscription] = None
 
     # Lifecycle
 
@@ -222,11 +226,20 @@ class EventStream:
     async def _close_all(self, kind: str) -> None:
         """
         Close every open subscription, and start the disconnected time at the
-        last sign of life among them.
+        last sign of life of the held subscription or of any that delivered.
         """
         subscriptions = list(self.open_subscriptions)
-        if subscriptions:
-            self._note_disconnected(max(s.last_alive for s in subscriptions))
+        # The held subscription may have ended and left the open set already.
+        # A subscription that never delivered held nothing, so its connect
+        # time is not a sign of life.
+        held = [s for s in subscriptions if s.delivering.is_set()]
+        if self._held is not None:
+            held.append(self._held)
+            self._held = None
+        if held:
+            self._note_disconnected(max(s.last_alive for s in held))
+        elif subscriptions:
+            self._note_disconnected(min(s.connected_at for s in subscriptions))
         for subscription in subscriptions:
             await subscription.close(kind)
             self.open_subscriptions.discard(subscription)
@@ -245,6 +258,7 @@ class EventStream:
             current = await self._connect(backfill)
             if current is None:
                 return None
+            self._held = current
             self.first_connect = False
             if not backfill:
                 self.backfill_failures = 0
@@ -255,10 +269,12 @@ class EventStream:
         if current.end_kind is None:
             replacement = await self._replace(current)
             if replacement is not None:
+                self._held = replacement
                 return replacement
             if current.end_kind is None:
                 return current
 
+        self._held = None
         await self._after_unplanned_end(current)
         return None
 
@@ -442,7 +458,8 @@ class EventStream:
             return
         except Exception:
             self.logger.exception("Event stream keepalive failed")
-            subscription.end("error")
+            # The abort leaves no close frame, so _receive ends the
+            # subscription as "error".
             subscription.ws.transport.abort()
 
     async def _grace(self, subscription: Subscription) -> None:
@@ -463,7 +480,7 @@ class EventStream:
         self._advance_cursor(event.get("occurred"), now)
 
     def _advance_cursor(self, occurred, now: float) -> None:
-        """Moves the backfill cursor to `occurred`, clamped to now."""
+        """Move the backfill cursor to `occurred`, clamped to now."""
         # Called only after the event was handled, so an event that raised
         # leaves the cursor where the last handled event put it.
         if not occurred:
