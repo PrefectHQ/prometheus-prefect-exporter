@@ -107,11 +107,11 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
 ### Positive
 
 - Flow-run terminal counts no longer depend on scrape timing or run length. A terminal state that
-  reaches the exporter is counted once, as long as any duplicate copy arrives within 24 hours.
-  Counts on a series that was not created at zero, made before Prometheus first scrapes it, are not
-  visible to `increase()` (see Negative). The target is counts within 0.1% of a recount of the same
-  events. Over 18.6 hours on a Prefect-operated workspace, through 24 unplanned disconnects, the
-  counter matched a recount of the same events in every state (30,416 terminal runs).
+  reaches the exporter is counted once, as long as any duplicate copy arrives within 24 hours. Some
+  counts made before a scrape are not visible to `increase()` (see Negative). The target is counts
+  within 0.1% of a recount of the same events. Over 18.6 hours on a Prefect-operated workspace,
+  through 24 unplanned disconnects, the counter matched a recount of the same events in every state
+  (30,416 terminal runs).
 - Scrapes read stored values, so a slow or failing Prefect API cannot fail `/metrics`, and scrape
   cost no longer grows with the number of runs.
 - The exporter reports its own collection health: whether it is connected, how long it was
@@ -130,14 +130,14 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   from the few seconds before an unplanned reconnect that the server had not yet written to its
   database (5 seconds by default). They are small, and they are the reason the target is within 0.1%
   of a recount rather than exact.
-- Counts made between an exporter start and Prometheus's first scrape of it are not visible to
-  `increase()`: a new series' first sample is already above zero, and after a restart the new
-  process's counter may pass the old one's last value before a decrease is ever scraped, so the
-  reset goes undetected. The loss is bounded by one scrape interval per start, unless Prometheus
-  ingests created timestamps.
+- Two cases hide counts from `increase()`. A series Prometheus has never scraped loses every count
+  made before its first scrape, because its first sample is already above zero; created-timestamp
+  ingestion avoids this. After a restart, Prometheus sees the counter drop and credits the new
+  process's counts as a reset, unless the new counter reaches the old process's last value before a
+  scrape sees it lower; then the reset goes undetected and those counts are lost. Both are bounded
+  by one scrape interval per start.
 - A series the exporter did not create in advance (a run on a non-default work queue, a custom state
-  name) loses every count made before Prometheus first scrapes it after each exporter start, unless
-  Prometheus ingests created timestamps.
+  name) is new to Prometheus the first time it appears, so it falls in the first case.
 - The API key needs permission to read events, which the previous exporter did not. On Prefect
   Server, the outbound event stream must be enabled (it is by default); with it turned off the
   exporter produces no terminal counts, and it reports this through its refused gauge.
