@@ -8,10 +8,9 @@ Accepted
 
 The exporter computes its flow-run metrics from what each run's state is when Prometheus scrapes.
 `prefect_info_flow_runs` lists runs from a recent window and reports how many are in each state at
-that moment. These snapshots cannot be turned into counts of runs that reached a state: a run can
-pass through a state between two scrapes and never be seen in it, or be seen in the same state on
-many scrapes. Completed, failed, crashed and cancelled counts built from them come out low. One user compared Grafana with the Prefect UI over
-the same window and saw 11 failed runs against 16, and 2,204 completed against 2,406. The loss grows
+that moment. A run can pass through a terminal state between two scrapes and never be seen in it,
+so completed, failed, crashed and cancelled counts built from these snapshots come out low. Users
+have reported Grafana counts below the Prefect UI's for the same window. The loss grows
 with run length, because the exporter lists only runs that started in the last few minutes. Run side
 by side on a Prefect-operated workspace, version 4.2.0 reported 99.2% of terminal runs that took
 under a minute, 84% of runs that took 1 to 3 minutes, and 2 of 66 runs that took 3 to 10 minutes.
@@ -27,9 +26,12 @@ both stream events to API clients over the `/events/out` websocket.
 The exporter counts flow-run terminal states from the `/events/out` stream, in the exporter process.
 
 - One subscription per exporter receives `prefect.flow-run.*` events, excluding heartbeats and
-  pull-step events.
+  pull-step events. Before the server's connection limit, the exporter opens a replacement
+  subscription with replay beside the old one and closes the old one once the new one delivers;
+  the duplicate memory below absorbs the overlap. After three replays in a row fail, it connects
+  once without replay.
 - A state is terminal by its state type: `COMPLETED`, `FAILED`, `CRASHED` or `CANCELLED`.
-- A run attempt is the run id plus the run count its events carry. Each terminal state an attempt
+- A run attempt is the run id plus the run count in its events. Each terminal state an attempt
   enters adds one to that state's counter, once. An attempt that reports `CRASHED` and then
   `CANCELLED` counts in both.
 - The exporter remembers the (attempt, state type) pairs it has counted for 24 hours, so redelivered
@@ -46,7 +48,7 @@ The exporter counts flow-run terminal states from the `/events/out` stream, in t
 - Current state (runs scheduled, pending, running, paused or cancelling now), the ongoing-run gauge,
   recent failed runs and the inventory metrics stay polled, on background loops rather than inside
   the scrape.
-- Exactly one exporter runs per workspace, deployed with the `Recreate` strategy.
+- Exactly one exporter runs per workspace or server, deployed with the `Recreate` strategy.
 
 `prefect_info_flow_runs`, `prefect_flow_runs_total` and `prefect_flow_runs_total_run_time` are removed
 in the same major version, with no transition period.
@@ -91,7 +93,7 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   server-side code, gives Prefect Server users nothing unless it is built twice, delays counts by
   minutes, and a server total that ever reads lower than the last scrape becomes a counter reset in
   Prometheus, which reports the whole total as new.
-- **Deduplicate by event id.** Rejected: duplicate terminal events carry distinct ids. On the same
+- **Deduplicate by event id.** Rejected: duplicate terminal events have distinct ids. On the same
   workspace, 1,794 failed-state events belonged to 1,571 failed attempts, so counting by event id
   would report 14% more failures than happened.
 - **Persist a cursor and catch up through a server query after any disconnect.** Rejected for now:
@@ -104,8 +106,10 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
 
 ### Positive
 
-- Flow-run terminal counts no longer depend on scrape timing or run length; every terminal state
-  that reaches the exporter is counted once. Over 18.6 hours on a Prefect-operated workspace, through
+- Flow-run terminal counts no longer depend on scrape timing or run length. A terminal state that
+  reaches the exporter is counted once, as long as any duplicate copy arrives within the 24-hour
+  memory and its series exists or was created at zero. The target is counts within 0.1% of a
+  recount of the same events. Over 18.6 hours on a Prefect-operated workspace, through
   24 unplanned disconnects, the counter matched a recount of the same events in every state (30,416
   terminal runs).
 - Scrapes read stored values, so a slow or failing Prefect API cannot fail `/metrics`, and scrape
@@ -124,8 +128,8 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
 - Some losses are invisible to the exporter: an event the server drops while the socket stays open,
   one that arrives late enough to fall outside the replay window, or, on Prefect Server, an event
   from the few seconds before an unplanned reconnect that the server had not yet written to its
-  database (5 seconds by default). They are small, and they are
-  the reason the target is "within 0.1% of a recount" rather than exact.
+  database (5 seconds by default). They are small, and they are the reason the target is within
+  0.1% of a recount rather than exact.
 - Counts made between an exporter start and Prometheus's first scrape of it are not visible to
   `increase()`: a new series' first sample is already above zero, and after a restart the new
   process's counter may pass the old one's last value before a decrease is ever scraped, so the reset
@@ -135,7 +139,7 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   name) loses its first count after each exporter start.
 - The API key needs permission to read events, which the previous exporter did not.
 - Upgrading removes three metrics. Dashboards and alerts that use them stop returning data until
-  they are rewritten; an alert on a removed metric does not fail, it goes quiet.
+  they are rewritten, and an alert on a removed metric stops firing.
 - The per-state counts differ by definition from the Prefect UI, which counts each run once in its
   current state. A run that failed and then completed after a retry counts once in each state here.
 
@@ -145,8 +149,8 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   and a server catch-up query become worth their cost.
 - If the server stops replaying recent events on connect, or shortens how long a websocket may stay
   open below a few minutes, the reconnect design needs another look.
-- If Prefect starts emitting heartbeats or other high-volume events under `prefect.flow-run.*`, the
-  subscription filter needs updating.
+- If Prefect adds other high-volume event types under `prefect.flow-run.*`, the subscription filter
+  needs updating.
 
 ## References
 
