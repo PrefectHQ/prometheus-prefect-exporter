@@ -29,8 +29,9 @@ exporter process.
 - One subscription per exporter receives `prefect.flow-run.*` events, excluding heartbeats and
   pull-step events. Every nine minutes, before Prefect Cloud's connection time limit, the exporter
   opens a replacement subscription with replay beside the old one and closes the old one once the
-  new one delivers; the record of counted pairs below absorbs the overlap. After three replays in a
-  row fail, it connects once without replay.
+  new one delivers an event, or has stayed open for 30 seconds on a quiet workspace; the record of
+  counted pairs below absorbs the overlap. After three replays in a row fail, it connects once
+  without replay.
 - A state is terminal by its state type: `COMPLETED`, `FAILED`, `CRASHED` or `CANCELLED`.
 - A run attempt is the run id plus the run count in its events. Each terminal state an attempt
   enters adds one to that state's counter, once. An attempt that reports `CRASHED` and then
