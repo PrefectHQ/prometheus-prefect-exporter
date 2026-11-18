@@ -39,8 +39,10 @@ The exporter counts flow-run terminal states from the `/events/out` stream, in t
   process's counts.
 - Counts are exposed as `prefect_flow_runs_terminal_total`, labelled `deployment_name`, `flow_name`,
   `work_pool_name`, `work_queue_name`, `state_type` and `state_name`, plus a run-duration histogram.
-  Counter series for every known deployment and standard state name are created at zero, so the
-  first count of each is visible to `increase()`.
+  Counter series for every known deployment and standard state name are created at zero, so once
+  Prometheus has scraped the zero, the next count is visible to `increase()`. The exporter also
+  exposes each series' created timestamp, which Prometheus can use in place of a scraped zero when
+  it ingests created timestamps.
 - Current state (runs scheduled, pending, running, paused or cancelling now), the ongoing-run gauge,
   recent failed runs and the inventory metrics stay polled, on background loops rather than inside
   the scrape.
@@ -124,6 +126,11 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   from the few seconds before an unplanned reconnect that the server had not yet written to its
   database (5 seconds by default). They are small, and they are
   the reason the target is "within 0.1% of a recount" rather than exact.
+- Counts made between an exporter start and Prometheus's first scrape of it are not visible to
+  `increase()`: a new series' first sample is already above zero, and after a restart the new
+  process's counter may pass the old one's last value before a decrease is ever scraped, so the reset
+  goes undetected. The loss is bounded by one scrape interval per start, unless Prometheus ingests
+  created timestamps.
 - A series the exporter did not create in advance (a run on a non-default work queue, a custom state
   name) loses its first count after each exporter start.
 - The API key needs permission to read events, which the previous exporter did not.
