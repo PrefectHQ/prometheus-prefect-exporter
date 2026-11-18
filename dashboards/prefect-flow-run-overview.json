@@ -739,42 +739,6 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "created"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dateTimeAsIso"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "name"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 201
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "spent time"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
               "options": "state"
             },
             "properties": [
@@ -928,61 +892,32 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "Value": true,
               "__name__": true,
               "container": true,
-              "created": false,
-              "deployment_id": true,
-              "deployment_name": true,
               "endpoint": true,
-              "flow_id": true,
-              "flow_name": true,
-              "flow_run_id": true,
               "instance": true,
               "job": true,
-              "name": false,
               "namespace": true,
               "pod": true,
-              "service": true,
-              "start_time": false,
-              "state_id": true,
-              "updated": true,
-              "work_queue_name": true
+              "service": true
             },
             "indexByName": {
-              "Time": 8,
-              "Value": 22,
-              "__name__": 9,
-              "container": 10,
-              "created": 18,
-              "deployment_id": 6,
-              "deployment_name": 7,
-              "end_time": 20,
-              "endpoint": 11,
-              "flow_id": 4,
-              "flow_name": 5,
-              "flow_run_id": 1,
-              "flow_run_name": 0,
-              "instance": 12,
-              "job": 13,
-              "namespace": 14,
-              "pod": 15,
-              "prefect_flow_runs_current": 23,
-              "run_count": 2,
-              "service": 16,
-              "start_time": 19,
-              "state_id": 21,
-              "total_run_time": 3,
-              "work_queue_name": 17
+              "deployment_name": 0,
+              "flow_name": 1,
+              "work_queue_name": 2,
+              "state_type": 3,
+              "state_name": 4,
+              "flow_run_name": 5,
+              "Value": 6
             },
             "renameByName": {
-              "is_schedule_active": "scheduled",
-              "job": "",
-              "prefect_flow_runs_current": "state",
-              "run_count": "runs",
-              "start_time": "",
+              "deployment_name": "deployment",
+              "flow_name": "flow",
+              "work_queue_name": "work queue",
+              "state_type": "state type",
               "state_name": "state",
-              "total_run_time": "spent time"
+              "flow_run_name": "run",
+              "Value": "runs"
             }
           }
         }

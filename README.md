@@ -170,7 +170,7 @@ You can modify environment variables to change the behavior of the exporter.
 | `MAX_RETRIES` | Number of retries to attempt when fetching metrics from Prefect API | `3` |
 | `METRICS_ADDR` | Address to expose metrics on | `0.0.0.0` |
 | `METRICS_PORT` | Port to expose metrics on | `8000` |
-| `PREFECT_API_URL` | Prefect API URL | `https://localhost:4200/api` |
+| `PREFECT_API_URL` | Prefect API URL | `http://localhost:4200/api` |
 | `PREFECT_API_KEY` | Prefect API key (Optional) | `""` |
 | `PREFECT_API_AUTH_STRING` | Prefect API auth string, automatically base64-encoded (Optional) | `""` |
 | `PREFECT_CSRF_ENABLED` | Enable compatibilty with Prefect Servers using CSRF protection | `False` |

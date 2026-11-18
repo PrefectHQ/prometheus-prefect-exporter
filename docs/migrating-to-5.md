@@ -37,7 +37,7 @@ variables; outside Grafana, use a range such as `[1h]`.
 | Flow Runs total, per flow (now Flow Runs finished) | `count(prefect_info_flow_runs{flow_name=~"$flow_name"})` | `sum(increase(prefect_flow_runs_terminal_total{flow_name=~"$flow_name"}[$__range]))` |
 | Flow Runs running | `count(prefect_info_flow_runs == 1)` | `sum(prefect_flow_runs_current{state_type="RUNNING"})` |
 | Flow Runs by state (now Flow Runs finished by state) | `count by (state_name) (prefect_info_flow_runs)` | `sum by (state_name) (increase(prefect_flow_runs_terminal_total[$__range]))` |
-| Flow runs table | `prefect_info_flow_runs{state_name=~"$flow_run_state_name", flow_name=~"$flow_name"}` | `prefect_flow_runs_current{state_name=~"$flow_run_state_name", flow_name=~"$flow_name"}` |
+| Flow runs table | `prefect_info_flow_runs{state_name=~"$flow_run_state_name", flow_name=~"$flow_name"}` | `prefect_flow_runs_current{state_name=~"$flow_run_state_name", flow_name=~"$flow_name"}`, one row per deployment, flow, work queue and state, with the number of runs in the `runs` column |
 | Flow Runs average run time | `avg(prefect_flow_runs_total_run_time)` | `sum(rate(prefect_flow_run_duration_seconds_sum[$__range])) / sum(rate(prefect_flow_run_duration_seconds_count[$__range]))` |
 | Average time, per flow | `avg by (flow_name) (prefect_flow_runs_total_run_time{flow_name=~"$flow_name"})` | `sum by (flow_name) (rate(prefect_flow_run_duration_seconds_sum{flow_name=~"$flow_name"}[$__range])) / sum by (flow_name) (rate(prefect_flow_run_duration_seconds_count{flow_name=~"$flow_name"}[$__range]))` |
 | Flow Run total run time (now Flow Run average run time) | `avg by (flow_name) (prefect_flow_runs_total_run_time{flow_name=~"$flow_name"})` | the per-flow average above, with `[$__rate_interval]` |
@@ -69,8 +69,9 @@ as the last attempt's failure.
 ## Other changes
 
 - `OFFSET_MINUTES` is no longer used; the exporter logs a warning if it is set.
-- The exporter no longer exits at startup when the Prefect API is unreachable. It keeps retrying, and
-  `prefect_exporter_poll_success` and `prefect_exporter_stream_connected` show 0 until it connects.
+- The exporter no longer exits at startup when the Prefect API is unreachable. It serves `/metrics`
+  at once and keeps retrying, and `prefect_exporter_poll_success` and
+  `prefect_exporter_stream_connected` show 0 until it connects.
 - `prefect_flow_runs_ongoing_run_time` has a new `work_queue_name` label, and includes late
   scheduled runs, timed from their expected start time.
 - On the new metrics, a run without a deployment has empty `deployment_name`, `work_pool_name` and
