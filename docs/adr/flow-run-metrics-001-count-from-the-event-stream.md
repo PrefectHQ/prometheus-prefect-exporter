@@ -107,9 +107,9 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
 ### Positive
 
 - Flow-run terminal counts no longer depend on scrape timing or run length. A terminal state that
-  reaches the exporter is counted once, as long as any duplicate copy arrives within 24 hours. A
-  count on a series that was not created at zero is not visible to `increase()` (see Negative). The
-  target is counts within 0.1% of a recount of the same events. Over 18.6 hours on a
+  reaches the exporter is counted once, as long as any duplicate copy arrives within 24 hours. The
+  first count on a series that was not created at zero is not visible to `increase()` (see
+  Negative). The target is counts within 0.1% of a recount of the same events. Over 18.6 hours on a
   Prefect-operated workspace, through 24 unplanned disconnects, the counter matched a recount of the
   same events in every state (30,416 terminal runs).
 - Scrapes read stored values, so a slow or failing Prefect API cannot fail `/metrics`, and scrape
