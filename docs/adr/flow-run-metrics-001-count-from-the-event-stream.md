@@ -38,8 +38,9 @@ exporter process.
 - The exporter remembers the (attempt, state type) pairs it has counted for 24 hours, so redelivered
   and duplicate events count once.
 - On reconnecting within one process it asks the server to replay recent events; on its first
-  connection after starting it does not, because Prometheus has already credited the previous
-  process's counts.
+  connection after starting it does not, because Prometheus has already credited the counts it
+  scraped from the previous process. Counts that process made after its last scrape are lost (see
+  Negative).
 - Counts are exposed as `prefect_flow_runs_terminal_total`, labelled `deployment_name`, `flow_name`,
   `work_pool_name`, `work_queue_name`, `state_type` and `state_name`, plus a run-duration histogram.
   Counter series for every known deployment and standard state name are created at zero, so once
@@ -120,9 +121,10 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
 
 ### Negative
 
-- Terminal states that happen while the exporter is down are never counted. Under the rejected
-  server-held totals they would have been recovered once the exporter came back. The loss is bounded
-  by the exporter's downtime, and the exporter's process start time shows when it happened;
+- Terminal states that happen while the exporter is down are never counted, and neither are counts a
+  stopping exporter made after Prometheus last scraped it. Under the rejected server-held totals
+  they would have been recovered once the exporter came back. The loss is bounded by the exporter's
+  downtime plus one scrape interval, and the exporter's process start time shows when it happened;
   operators who need complete totals alert on the exporter's `up`.
 - A disconnection longer than the server's replay window loses the events in between. The exporter
   reports that time, and nothing recovers it.
@@ -132,11 +134,12 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   database (5 seconds by default). They are small, and they are the reason the target is within 0.1%
   of a recount rather than exact.
 - Two cases hide counts from `increase()`. A series Prometheus has never scraped loses every count
-  made before its first scrape, because its first sample is already above zero; created-timestamp
-  ingestion avoids this. After a restart, Prometheus sees the counter drop and credits the new
-  process's counts as a reset, unless the new counter reaches the old process's last value before a
-  scrape sees it lower; then the reset goes undetected and those counts are lost. Both are bounded
-  by one scrape interval per start.
+  made before its first scrape, because its first sample is already above zero. After a restart,
+  Prometheus sees the counter drop and credits the new process's counts as a reset, unless the new
+  counter reaches the old process's last value before a scrape sees it lower; then the reset goes
+  undetected and those counts are lost. Both are bounded by one scrape interval per start, and
+  created-timestamp ingestion avoids both: its injected zero makes a new series' first count and a
+  restart's reset visible.
 - A series the exporter did not create in advance (a run on a non-default work queue, a custom state
   name) is new to Prometheus the first time it appears, so it falls in the first case.
 - The API key needs permission to read events, which the previous exporter did not. On Prefect
