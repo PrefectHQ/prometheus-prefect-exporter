@@ -22,9 +22,10 @@ def metrics():
     if "OFFSET_MINUTES" in os.environ:
         logger.warning("OFFSET_MINUTES is no longer used and is ignored")
 
-    exporter = Exporter(config, REGISTRY, logger)
+    # Serve /metrics first: nothing below waits on the Prefect API.
     start_http_server(config.metrics_port, config.metrics_addr)
     logger.info(f"Exporter listening on {config.metrics_addr}:{config.metrics_port}")
+    exporter = Exporter(config, REGISTRY, logger)
     exporter.start()
 
     shutdown = threading.Event()

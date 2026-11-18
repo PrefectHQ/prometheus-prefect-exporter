@@ -118,23 +118,15 @@ class Exporter:
             self.stream_metrics,
             StreamHealth(registry),
             logger,
-            stream_disabled=self._stream_disabled(),
+            read_stream_out_enabled=(
+                None
+                if config.is_cloud
+                else PrefectAdmin(**self.api_kwargs).stream_out_enabled
+            ),
         )
         self.stream_thread = threading.Thread(
             target=self._run_stream, name="event-stream", daemon=True
         )
-
-    def _stream_disabled(self) -> bool:
-        if self.config.is_cloud:
-            return False
-        enabled = PrefectAdmin(**self.api_kwargs).stream_out_enabled()
-        if enabled is None:
-            self.logger.warning(
-                "Could not read the server's settings; assuming its event stream "
-                "is enabled"
-            )
-            return False
-        return not enabled
 
     def _run_stream(self) -> None:
         # The stream catches its own errors; this restarts it if one still

@@ -320,7 +320,7 @@ def test_cloud_does_not_read_server_settings(monkeypatch):
     )
 
     assert called == []
-    assert exporter.stream.stream_disabled is False
+    assert exporter.stream.read_stream_out_enabled is None
     assert exporter.stream.settings.backfill_window == 120.0
     assert exporter.stream.settings.token == "k"
     assert exporter.stream.url.startswith("wss://api.prefect.cloud/")
@@ -335,7 +335,7 @@ def test_cloud_does_not_read_server_settings(monkeypatch):
         dict(json={"server": "unexpected"}),
     ],
 )
-def test_unreadable_server_settings_assume_the_stream_is_enabled(reply):
+def test_unreadable_server_settings_read_as_unknown(reply):
     url = "http://prefect.test/api"
     responses.add(responses.GET, f"{url}/admin/settings", **reply)
 
@@ -345,7 +345,18 @@ def test_unreadable_server_settings_assume_the_stream_is_enabled(reply):
         logging.getLogger("test"),
     )
 
-    assert exporter.stream.stream_disabled is False
+    assert exporter.stream.read_stream_out_enabled() is None
+
+
+@responses.activate
+def test_building_the_exporter_sends_no_api_request():
+    Exporter(
+        Config.from_env({"PREFECT_API_URL": "http://prefect.test/api"}),
+        CollectorRegistry(),
+        logging.getLogger("test"),
+    )
+
+    assert len(responses.calls) == 0
 
 
 def test_stream_thread_restarts_a_stream_that_raised(monkeypatch):

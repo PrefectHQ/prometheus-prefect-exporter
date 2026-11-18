@@ -43,7 +43,7 @@ class Harness:
             refusal_retry=0.2,
             open_timeout=2.0,
         )
-        stream_disabled = overrides.pop("stream_disabled", False)
+        read_stream_out_enabled = overrides.pop("read_stream_out_enabled", None)
         settings.update(overrides)
         self.registry = CollectorRegistry()
         self.health = StreamHealth(self.registry)
@@ -54,7 +54,7 @@ class Harness:
             self.metrics,
             self.health,
             logging.getLogger("test"),
-            stream_disabled=stream_disabled,
+            read_stream_out_enabled=read_stream_out_enabled,
             rng=UpperJitter(),
         )
         self.task = None
@@ -416,7 +416,9 @@ def test_disabled_stream_is_reported_as_refused_while_connected():
     async def scenario():
         async with FakeEventsServer() as server:
             server.scripts = [_hold_after([])]
-            async with Harness(server.port, stream_disabled=True) as harness:
+            async with Harness(
+                server.port, read_stream_out_enabled=lambda: False
+            ) as harness:
                 await wait_until(
                     lambda: harness.value("prefect_exporter_stream_connected") == 1
                 )
@@ -891,11 +893,11 @@ def test_an_error_while_handling_an_end_still_counts_the_disconnection():
             original = stream._account_disconnection
             raised = []
 
-            def raise_once_on_the_ended(subscription):
+            def raise_once_on_the_ended(subscription, **kwargs):
                 if subscription.end_kind is not None and not raised:
                     raised.append(1)
                     raise RuntimeError("unexpected")
-                original(subscription)
+                original(subscription, **kwargs)
 
             stream._account_disconnection = raise_once_on_the_ended
             async with harness:
@@ -955,5 +957,158 @@ def test_a_failed_step_counts_from_the_last_subscription_that_delivered(
                 # once it delivered; the replacement's connect is later than
                 # either and must not be used.
                 assert stream.disconnected_since == pytest.approx(last_event, abs=0.05)
+
+    run(scenario())
+
+
+@pytest.mark.parametrize("fallback", [False, True])
+def test_a_held_socket_that_ends_while_the_replacement_connects_is_a_disconnection(
+    fallback,
+):
+    async def scenario():
+        async def held(ws, filter_message):
+            await ws.send(event_message(TERMINALS[0]))
+            await asyncio.sleep(0.5)
+            await ws.close(1001)
+
+        async def replacement(ws, filter_message):
+            await ws.send(event_message(TERMINALS[1]))
+            await ws.wait_closed()
+
+        async with FakeEventsServer() as server:
+            server.scripts = [held, replacement]
+            harness = Harness(server.port, replace_after=0.3, ping_interval=10.0)
+            stream = harness.stream
+            original = stream._subscribe
+            calls = []
+
+            async def slow_second_subscribe(backfill):
+                calls.append(backfill)
+                if len(calls) == 2:
+                    # The held socket closes while this connect is in flight.
+                    await asyncio.sleep(0.6)
+                return await original(backfill)
+
+            stream._subscribe = slow_second_subscribe
+            if fallback:
+                stream._wants_backfill = lambda: False
+            async with harness:
+                await wait_until(lambda: harness.completed_count() == 2)
+                await asyncio.sleep(0.05)
+                # From the held socket's event to the replacement's connect,
+                # 0.3 s plus the 0.6 s delay.
+                assert _disconnected(harness) == pytest.approx(0.9, abs=0.2)
+                assert (
+                    harness.value(
+                        "prefect_exporter_stream_reconnects_total",
+                        reason="server_close",
+                    )
+                    == 1
+                )
+                gap = harness.value("prefect_exporter_stream_gap_seconds_total")
+                if fallback:
+                    assert gap == pytest.approx(_disconnected(harness), abs=0.01)
+                else:
+                    assert gap == 0
+                assert server.filters[1]["backfill"] is not fallback
+
+    run(scenario())
+
+
+def test_an_undelivered_reconnect_does_not_move_the_gap_start():
+    async def scenario():
+        async def held(ws, filter_message):
+            await ws.send(event_message(TERMINALS[0]))
+            await ws.close(1001)
+
+        async def drops_at_once(ws, filter_message):
+            await asyncio.sleep(0.05)
+            await ws.close(1001)
+
+        async def delivers(ws, filter_message):
+            await ws.send(event_message(TERMINALS[1]))
+            await ws.wait_closed()
+
+        async with FakeEventsServer() as server:
+            server.scripts = [held, drops_at_once, delivers]
+            # Fixed 1 s waits before each reconnect, a 1.2 s replay window, and
+            # a grace period long enough that only events deliver.
+            async with Harness(
+                server.port,
+                backfill_window=1.2,
+                delivering_grace=10.0,
+                immediate_retries=0,
+                backoff_initial=1.0,
+                backoff_max=1.0,
+                ping_interval=10.0,
+            ) as harness:
+                await wait_until(lambda: harness.completed_count() == 2)
+                # Lost at t=0, back at about 2.05 s with replay from 0.85 s:
+                # the 0.85 s before the replay is the gap. The two 1 s waits
+                # are the disconnected time.
+                assert harness.value(
+                    "prefect_exporter_stream_gap_seconds_total"
+                ) == pytest.approx(0.85, abs=0.2)
+                assert _disconnected(harness) == pytest.approx(2.0, abs=0.2)
+
+    run(scenario())
+
+
+def test_an_unanswered_settings_read_is_retried_on_the_next_connect():
+    async def scenario():
+        answers = iter([None, False])
+        reads = []
+
+        def read():
+            reads.append(1)
+            return next(answers)
+
+        async with FakeEventsServer() as server:
+            server.scripts = [_close_after([TERMINALS[0]], 1001)]
+            async with Harness(server.port, read_stream_out_enabled=read) as harness:
+                await wait_until(lambda: len(server.filters) == 2)
+                await asyncio.sleep(0.3)
+                assert len(reads) == 2
+                assert harness.value("prefect_exporter_stream_refused") == 1
+                assert harness.stream.stream_disabled is True
+
+    run(scenario())
+
+
+def test_a_held_end_counted_during_a_failed_replacement_is_counted_once():
+    async def scenario():
+        async def held(ws, filter_message):
+            await ws.send(event_message(TERMINALS[0]))
+            await asyncio.sleep(0.5)
+            await ws.close(1001)
+
+        async def replacement_fails(ws, filter_message):
+            await asyncio.sleep(0.05)
+            await ws.close(1001)
+
+        async with FakeEventsServer() as server:
+            server.scripts = [held, replacement_fails]
+            harness = Harness(server.port, replace_after=0.3, ping_interval=10.0)
+            stream = harness.stream
+            original = stream._subscribe
+            calls = []
+
+            async def slow_second_subscribe(backfill):
+                calls.append(backfill)
+                if len(calls) == 2:
+                    await asyncio.sleep(0.6)
+                return await original(backfill)
+
+            stream._subscribe = slow_second_subscribe
+            async with harness:
+                await wait_until(lambda: len(server.filters) == 3)
+                await asyncio.sleep(0.3)
+                assert (
+                    harness.value(
+                        "prefect_exporter_stream_reconnects_total",
+                        reason="server_close",
+                    )
+                    == 1
+                )
 
     run(scenario())

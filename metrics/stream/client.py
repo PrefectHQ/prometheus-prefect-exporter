@@ -85,6 +85,8 @@ class Subscription:
         self.delivering = asyncio.Event()
         self.ended = asyncio.Event()
         self.end_kind: Optional[str] = None
+        # Set when the end was already counted as a reconnect.
+        self.end_counted = False
         self.replace_due = 0.0
         self.tasks: list[asyncio.Task] = []
 
@@ -115,7 +117,7 @@ class EventStream:
         metrics: FlowRunStreamMetrics,
         health: StreamHealth,
         logger: logging.Logger,
-        stream_disabled: bool = False,
+        read_stream_out_enabled: Optional[Callable[[], Optional[bool]]] = None,
         wall: Callable[[], float] = time.time,
         rng: Optional[random.Random] = None,
     ) -> None:
@@ -126,8 +128,10 @@ class EventStream:
             metrics (FlowRunStreamMetrics): Records counted terminal states.
             health (StreamHealth): The stream's health metrics.
             logger (logging.Logger): The logger.
-            stream_disabled (bool): The server's outbound stream is off, so
-                the subscription is reported as refused.
+            read_stream_out_enabled (callable, optional): Reads whether the
+                server streams events out, returning None when it cannot tell.
+                Called before connecting until it answers; a server with the
+                stream off is reported as refused.
             wall (callable): The current time in seconds since the epoch.
             rng (random.Random, optional): The source of backoff jitter.
         """
@@ -136,13 +140,18 @@ class EventStream:
         self.metrics = metrics
         self.health = health
         self.logger = logger
-        self.stream_disabled = stream_disabled
+        self.read_stream_out_enabled = read_stream_out_enabled
+        self.stream_disabled = False
         self.wall = wall
         self.rng = rng or random.Random()
         self.url = events_out_url(settings.api_url)
 
         self.cursor: Optional[datetime] = None
         self.disconnected_since: Optional[float] = None
+        # Where terminal states may start to be missing. A subscription that
+        # ends before it delivered replays nothing, so it ends the disconnected
+        # time but not this.
+        self.gap_since: Optional[float] = None
         self.backfill_failures = 0
         self.failed_attempts = 0
         self.replacement_failures = 0
@@ -192,12 +201,6 @@ class EventStream:
         self._stop = asyncio.Event()
         if self._stop_requested.is_set():
             return
-        if self.stream_disabled:
-            self.health.refused.set(1)
-            self.logger.warning(
-                "The server's outbound event stream is disabled, so no flow-run "
-                "terminal states will be counted"
-            )
 
         current: Optional[Subscription] = None
         try:
@@ -296,7 +299,28 @@ class EventStream:
             self.settings.refusal_hint,
         )
 
+    async def _check_stream_out(self) -> None:
+        """Read the server's outbound stream setting until it answers."""
+        if self.read_stream_out_enabled is None:
+            return
+        enabled = await asyncio.to_thread(self.read_stream_out_enabled)
+        if enabled is None:
+            self.logger.warning(
+                "Could not read the server's settings; assuming its event stream "
+                "is enabled and reading them again on the next connect"
+            )
+            return
+        self.read_stream_out_enabled = None
+        self.stream_disabled = not enabled
+        if self.stream_disabled:
+            self.health.refused.set(1)
+            self.logger.warning(
+                "The server's outbound event stream is disabled, so no flow-run "
+                "terminal states will be counted"
+            )
+
     async def _connect(self, backfill: bool) -> Optional[Subscription]:
+        await self._check_stream_out()
         attempt_started = self.wall()
         try:
             return await self._subscribe(backfill)
@@ -322,6 +346,8 @@ class EventStream:
     def _note_disconnected(self, since: float) -> None:
         if self.disconnected_since is None:
             self.disconnected_since = since
+        if self.gap_since is None:
+            self.gap_since = since
 
     # Opening a subscription
 
@@ -505,25 +531,30 @@ class EventStream:
             self.backfill_failures = 0
         if not self.stream_disabled:
             self.health.refused.set(0)
-        self._account_disconnection(subscription)
+        self._account_disconnection(subscription, delivered=True)
 
-    def _account_disconnection(self, subscription: Subscription) -> None:
+    def _account_disconnection(
+        self, subscription: Subscription, delivered: bool
+    ) -> None:
         """
         Add the time from the last sign of the previous subscription to this
-        one's connect to the disconnected time, and the part of it that
-        backfill did not replay to the gap.
+        one's connect to the disconnected time. When this subscription
+        delivered, also add the part since the gap start that its backfill did
+        not replay to the gap.
         """
-        if self.disconnected_since is None:
+        if self.disconnected_since is not None:
+            self.health.disconnected_seconds.inc(
+                max(0.0, subscription.connected_at - self.disconnected_since)
+            )
+            self.disconnected_since = None
+        if not delivered or self.gap_since is None:
             return
-        disconnected = max(0.0, subscription.connected_at - self.disconnected_since)
         if subscription.backfill:
             covered_from = subscription.connected_at - self.settings.backfill_window
-            gap = max(0.0, covered_from - self.disconnected_since)
         else:
-            gap = disconnected
-        self.health.disconnected_seconds.inc(disconnected)
-        self.health.gap_seconds.inc(gap)
-        self.disconnected_since = None
+            covered_from = subscription.connected_at
+        self.health.gap_seconds.inc(max(0.0, covered_from - self.gap_since))
+        self.gap_since = None
 
     def _update_connected(self) -> None:
         self.health.connected.set(1 if self.open_subscriptions else 0)
@@ -569,10 +600,12 @@ class EventStream:
             return
         else:
             # A subscription that ended before it delivered still held the
-            # stream from its connect, so the time before that is accounted.
-            self._account_disconnection(subscription)
-            self.disconnected_since = subscription.last_alive
-            self.health.reconnects.labels(kind).inc()
+            # stream from its connect, so the disconnected time before that is
+            # accounted; the gap start stays where it was.
+            self._account_disconnection(subscription, delivered=False)
+            self._note_disconnected(subscription.last_alive)
+            if not subscription.end_counted:
+                self.health.reconnects.labels(kind).inc()
             self.logger.warning("The event stream closed (%s); reconnecting", kind)
 
         self.failed_attempts += 1
@@ -595,6 +628,15 @@ class EventStream:
             self.logger.warning("Event stream replacement failed to connect: %s", err)
             self._retry_replacement_later(current)
             return None
+        if current.end_kind is not None:
+            # `current` ended before the replacement connected, so the stream
+            # was disconnected in between.
+            self._note_disconnected(current.last_alive)
+            reason = current.end_kind
+            if reason not in ("server_close", "ping_timeout", "error"):
+                reason = "server_close"
+            self.health.reconnects.labels(reason).inc()
+            current.end_counted = True
 
         waiters = [
             asyncio.create_task(replacement.delivering.wait()),
@@ -619,6 +661,8 @@ class EventStream:
 
         if not backfill:
             self.backfill_failures = 0
+        # A socket that already ended keeps its end kind; close() does not
+        # replace it.
         await current.close("replaced")
         self.open_subscriptions.discard(current)
         self._update_connected()
