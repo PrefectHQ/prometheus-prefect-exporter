@@ -2,11 +2,8 @@
 name: Trigger Downstream Helm Chart Release
 
 "on":
-  # As soon as this repo creates an official release, we will
-  # create a corresponding release in the helm chart repo
-  release:
-    types: [released]
-  # The Release workflow calls this directly: a release it creates starts no workflow runs.
+  # The Release workflow calls this after creating the release: a release created with
+  # GITHUB_TOKEN starts no workflow runs.
   workflow_call:
     secrets:
       PREFECT_CI_BOT_PUBLIC_CLIENT_ID:

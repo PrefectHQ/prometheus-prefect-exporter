@@ -4,7 +4,6 @@ name: Notify on Failure
 "on":
   workflow_run:
     workflows:
-      - Trigger Downstream Helm Chart Release
       - Release
     types: [completed]
 
