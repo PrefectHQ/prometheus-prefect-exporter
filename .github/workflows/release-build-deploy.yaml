@@ -26,6 +26,26 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
+      # a re-run of a stale Release must not overwrite a published image
+      - name: Refuse a version that is already released
+        if: inputs.version != ''
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          status=0
+          git ls-remote --exit-code --tags "https://github.com/$GITHUB_REPOSITORY" "refs/tags/$VERSION" > /dev/null || status=$?
+          case "$status" in
+            0)
+              echo "::error::$VERSION is already released; dispatch a new Release instead of re-running this one"
+              exit 1
+              ;;
+            2) ;;
+            *)
+              echo "::error::Could not list the remote tags (git ls-remote exit $status)"
+              exit 1
+              ;;
+          esac
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 

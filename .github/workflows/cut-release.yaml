@@ -61,6 +61,10 @@ jobs:
             echo "::error::No existing version tag to bump"
             exit 1
           fi
+          if ! git merge-base --is-ancestor "$latest" "$GITHUB_SHA"; then
+            echo "::error::$GITHUB_SHA is behind the latest release $latest"
+            exit 1
+          fi
           IFS=. read -r major minor patch <<< "$latest"
           case "$BUMP" in
             major) version="$((major + 1)).0.0" ;;
@@ -71,11 +75,6 @@ jobs:
               exit 1
               ;;
           esac
-          # guards a tag pushed while this run was in progress
-          if git rev-parse --quiet --verify "refs/tags/$version" > /dev/null; then
-            echo "::error::Tag $version already exists"
-            exit 1
-          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Releasing **$version** ($BUMP bump from $latest)" >> "$GITHUB_STEP_SUMMARY"
 
