@@ -71,7 +71,6 @@ through a restart between two scrapes or while the event subscription is disconn
 
 - `prefect_exporter_stream_connected == 0` held for a few minutes (`for: 5m`): the subscription is
   down now. The gap metric below only grows once a later subscription delivers.
-
 - `changes(process_start_time_seconds{job="<exporter job>"}[1h]) > 0`: the exporter restarted.
 - `increase(prefect_exporter_stream_gap_seconds_total[1h]) > 0`: an outage outlasted the replay.
 - `prefect_exporter_stream_refused == 1`: the server refuses the subscription.
@@ -83,21 +82,24 @@ It cannot see these losses:
   what it has written, so events in the last few seconds before an unplanned reconnect can be missed.
 - A copy of a terminal event that arrives more than `DUPLICATE_MEMORY_HOURS` after the first copy, or
   after a restart, counts again.
-- On a series the exporter does not create at zero (a custom state name, or a deployment or flow
-  that appears after the inventory poll), counts made before Prometheus first scrapes it are not
-  visible to `increase()`, because its first sample is already above zero.
+- Counts on a series that Prometheus has not yet scraped at zero are not visible to `increase()`,
+  because the series' first sample is already above zero. This can happen whenever such a series
+  first appears: a custom state name, a run on a work queue other than its deployment's default, a
+  flow run without a deployment when the flow has one, a deployment or flow created since the last
+  inventory poll, or any count before the first inventory poll after a start.
 - After a restart, if the new counter reaches the old process's last value before Prometheus scrapes
-  it, `increase()` misses the reset and loses those counts.
-- The first loss can happen at any time, for each series that first appears; the second only before
-  the first successful scrape after a start. The exporter exposes created timestamps (`_created`
-  series), so a Prometheus that ingests them for this scrape format can avoid both; check your
-  Prometheus version and scrape settings.
+  it, `increase()` reads it as growth from the old value and misses that many counts. This can happen
+  only before the first successful scrape after a start.
 - On Prefect Cloud, a replay returns at most about 5,500 events, so a workspace with more matching
   flow-run events than that in the 2-minute replay window loses the rest after an unplanned
   reconnect.
 - On a self-hosted server, a state-change event can be published before its database transaction
   commits ([PrefectHQ/prefect#22654](https://github.com/PrefectHQ/prefect/issues/22654)); if the
   transaction rolls back, the exporter counts a transition that never happened.
+
+The exporter exposes created timestamps (`_created` series), so a Prometheus that ingests them for
+this scrape format can avoid the two `increase()` losses above; check your Prometheus version and
+scrape settings.
 
 `state_name` is text that flow code can set, so its number of values, and the counter's number of
 series, depends on your flows.
