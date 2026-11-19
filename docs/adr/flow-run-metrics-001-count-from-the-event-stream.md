@@ -127,7 +127,8 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   they would have been recovered once the exporter came back. The loss is bounded by the exporter's
   downtime plus the time since Prometheus last scraped it successfully, and the exporter's process
   start time shows when it happened; operators who need complete totals alert on changes to the
-  process start time and on the exporter's gap metric, since `up` can stay at 1 across a restart
+  process start time, on the exporter's gap metric, and on its connected gauge staying at 0 (the gap
+  metric grows only once a later subscription delivers), since `up` can stay at 1 across a restart
   between two scrapes or while the event subscription is disconnected.
 - A disconnection longer than the server's replay window loses the events in between. The exporter
   reports that time, and nothing recovers it.
