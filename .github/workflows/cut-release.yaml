@@ -142,6 +142,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions: {}
     # The release is already out by now, so a failed post must not mark the run failed.
+    # A failed post then shows only in this run; the failure notice fires only on failed runs.
     continue-on-error: true
     steps:
       - name: Send Slack notification
@@ -157,7 +158,7 @@ jobs:
                 "pretext": ${{ toJSON(format(':rocket: prometheus-prefect-exporter {0} released', needs.version.outputs.version)) }},
                 "title": ${{ toJSON(needs.version.outputs.version) }},
                 "title_link": ${{ toJSON(format('https://github.com/{0}/releases/tag/{1}', github.repository, needs.version.outputs.version)) }},
-                "text": ${{ toJSON(format('Image: <https://hub.docker.com/r/prefecthq/prometheus-prefect-exporter/tags?name={0}|prefecthq/prometheus-prefect-exporter:{0}>, Chart: <https://github.com/PrefectHQ/prefect-helm/actions/workflows/prometheus-exporter-helm-release.yaml|prefect-helm release>', needs.version.outputs.version)) }},
+                "text": ${{ toJSON(format('Image: <https://hub.docker.com/r/prefecthq/prometheus-prefect-exporter/tags?name={0}|prefecthq/prometheus-prefect-exporter:{0}>, Chart: <https://github.com/PrefectHQ/prefect-helm/actions/workflows/prometheus-exporter-helm-release.yaml|prefect-helm chart run (dispatched)>', needs.version.outputs.version)) }},
                 "footer": ${{ toJSON(format('{0} | released by {1}', github.repository, github.actor)) }},
                 "footer_icon": "https://slack-imgs.com/?c=1&o1=wi32.he32.si&url=https%3A%2F%2Fslack.github.com%2Fstatic%2Fimg%2Ffavicon-neutral.png",
                 "color": "good"
