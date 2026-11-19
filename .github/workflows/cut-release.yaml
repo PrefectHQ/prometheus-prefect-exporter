@@ -85,7 +85,9 @@ jobs:
     uses: ./.github/workflows/release-build-deploy.yaml
     with:
       version: ${{ needs.version.outputs.version }}
-    secrets: inherit
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     permissions:
       # required to read from the repo
       contents: read
@@ -112,6 +114,8 @@ jobs:
   chart:
     needs: release
     uses: ./.github/workflows/helm-chart-release.yaml
-    secrets: inherit
+    secrets:
+      PREFECT_CI_BOT_PUBLIC_CLIENT_ID: ${{ secrets.PREFECT_CI_BOT_PUBLIC_CLIENT_ID }}
+      PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY: ${{ secrets.PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY }}
     # the called workflow mints its own app token for prefect-helm
     permissions: {}

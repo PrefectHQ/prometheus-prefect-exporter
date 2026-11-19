@@ -7,7 +7,12 @@ name: Trigger Downstream Helm Chart Release
   release:
     types: [released]
   # The Release workflow calls this directly: a release it creates fires no events.
-  workflow_call: {}
+  workflow_call:
+    secrets:
+      PREFECT_CI_BOT_PUBLIC_CLIENT_ID:
+        required: true
+      PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY:
+        required: true
 
 permissions: {}
 

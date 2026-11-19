@@ -11,6 +11,11 @@ name: Build and Publish prometheus-prefect-exporter Image
         description: The version to tag the image with
         type: string
         required: true
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
 
 permissions: {}
 
