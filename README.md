@@ -284,6 +284,8 @@ the release to Slack. The tests are the full suite, including the integration jo
 replicas on Redis. Label a pull request `breaking` when it needs a major release, so the release
 notes group it with the other breaking changes. If a job fails, use "Re-run failed jobs" on that
 run; "Re-run all jobs" and a new dispatch both refuse a commit that is already released.
+The Release workflow is the only way to publish an image: pushing a tag or creating a release
+by hand in the GitHub UI builds none.
 
 ### Documentation
 

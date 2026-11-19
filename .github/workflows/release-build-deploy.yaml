@@ -2,9 +2,6 @@
 name: Build and Publish prometheus-prefect-exporter Image
 
 "on":
-  push:
-    tags:
-      - '*'
   workflow_call:
     inputs:
       version:
@@ -38,7 +35,6 @@ jobs:
           persist-credentials: false
 
       - name: Refuse a stale release
-        if: inputs.version != ''
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
@@ -56,10 +52,8 @@ jobs:
         with:
           images: prefecthq/prometheus-prefect-exporter
           flavor: latest=true
-          # A tag push reads the version from the tag; the Release workflow passes it in.
           tags: |
-            type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
-            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=semver,pattern={{version}},value=${{ inputs.version }}
           labels: |
             org.opencontainers.image.title=prometheus-prefect-exporter
             org.opencontainers.image.description=Prometheus Prefect Exporter image
