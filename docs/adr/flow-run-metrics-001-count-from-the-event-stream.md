@@ -141,9 +141,10 @@ keeps those labels so they can be ported query by query, and adds `state_type` a
   made before its first scrape, because its first sample is already above zero. After a restart,
   Prometheus sees the counter drop and credits the new process's counts as a reset, unless the new
   counter reaches the old process's last value before a scrape sees it lower; then the reset goes
-  undetected and those counts are lost. Both are bounded by the time until Prometheus next scrapes
-  successfully after each start, and created-timestamp ingestion avoids both: its injected zero
-  makes a new series' first count and a restart's reset visible.
+  undetected and those counts are lost. The first can happen whenever a series first appears; the
+  second only until Prometheus next scrapes successfully after a start, and created-timestamp
+  ingestion avoids both: its injected zero makes a new series' first count and a restart's reset
+  visible.
 - A series the exporter did not create in advance (a run on a non-default work queue, a custom state
   name) is new to Prometheus the first time it appears, so it falls in the first case.
 - On Prefect Server, a state-change event can be published before its database transaction commits
