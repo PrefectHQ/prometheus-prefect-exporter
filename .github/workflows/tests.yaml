@@ -7,6 +7,7 @@ name: Tests
     branches:
       - main
   workflow_dispatch: {}
+  workflow_call: {}
 
 permissions: {}
 

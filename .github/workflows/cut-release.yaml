@@ -1,0 +1,117 @@
+---
+name: Release
+run-name: Release (${{ inputs.bump }} bump)
+
+"on":
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to increase
+        type: choice
+        required: true
+        options:
+          - major
+          - minor
+          - patch
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Compute the next version
+    runs-on: ubuntu-latest
+    permissions:
+      # required to read from the repo
+      contents: read
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - name: Require the main branch
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::Releases are cut from main, not $REF"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # the version comes from the existing tags
+          fetch-depth: 0
+
+      - name: Compute the next version
+        id: next
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          latest=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [ -z "$latest" ]; then
+            echo "::error::No existing version tag to bump"
+            exit 1
+          fi
+          IFS=. read -r major minor patch <<< "$latest"
+          case "$BUMP" in
+            major) version="$((major + 1)).0.0" ;;
+            minor) version="$major.$((minor + 1)).0" ;;
+            patch) version="$major.$minor.$((patch + 1))" ;;
+            *)
+              echo "::error::Unknown bump: $BUMP"
+              exit 1
+              ;;
+          esac
+          if git rev-parse --quiet --verify "refs/tags/$version" > /dev/null; then
+            echo "::error::Tag $version already exists"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing **$version** ($BUMP bump from $latest)" >> "$GITHUB_STEP_SUMMARY"
+
+  tests:
+    needs: version
+    uses: ./.github/workflows/tests.yaml
+    permissions:
+      # required to read from the repo
+      contents: read
+
+  image:
+    needs: [version, tests]
+    uses: ./.github/workflows/release-build-deploy.yaml
+    with:
+      version: ${{ needs.version.outputs.version }}
+    secrets: inherit
+    permissions:
+      # required to read from the repo
+      contents: read
+
+  release:
+    name: Create the GitHub release
+    needs: [version, image]
+    runs-on: ubuntu-latest
+    permissions:
+      # required to create the tag and the release
+      contents: write
+    steps:
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          gh release create "$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --generate-notes
+
+  chart:
+    needs: release
+    uses: ./.github/workflows/helm-chart-release.yaml
+    secrets: inherit
+    # the called workflow mints its own app token for prefect-helm
+    permissions: {}
