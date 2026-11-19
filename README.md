@@ -282,7 +282,7 @@ It computes the next version from the highest version tag, runs the tests, pushe
 creates the GitHub release with generated notes, and then triggers the Helm chart release. The
 tests are the full suite, including the integration job against two API replicas on Redis. Label a
 pull request `breaking` when it needs a major release, so the release notes group it with the
-other breaking changes. If a step after the release fails, use "Re-run failed jobs" on that run;
+other breaking changes. If a job fails, use "Re-run failed jobs" on that run;
 "Re-run all jobs" and a new dispatch both refuse a commit that is already released.
 
 ### Documentation
