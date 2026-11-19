@@ -105,6 +105,17 @@ jobs:
       # required to create the tag and the release
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Refuse a stale release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: .github/scripts/check-release-is-newest.sh
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}

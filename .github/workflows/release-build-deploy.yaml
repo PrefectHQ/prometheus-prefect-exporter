@@ -26,55 +26,29 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      # a re-run of a stale Release must not publish a version or commit at or behind the latest one
-      - name: Refuse a version at or below the latest release
-        if: inputs.version != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          exit_code=0
-          remote_tags=$(git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY" 'refs/tags/*') || exit_code=$?
-          if [ "$exit_code" -ne 0 ]; then
-            echo "::error::Could not list the remote tags (git ls-remote exit $exit_code)"
-            exit 1
-          fi
-          highest=$(printf '%s\n' "$remote_tags" | sed -e 's|^.*refs/tags/||' -e '/\^{}$/d' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
-          if [ -z "$highest" ]; then
-            exit 0
-          fi
-          above=$(printf '%s\n%s\n' "$highest" "$VERSION" | sort -V | tail -n 1)
-          if [ "$highest" = "$VERSION" ] || [ "$above" != "$VERSION" ]; then
-            echo "::error::$VERSION is not above the latest release $highest; dispatch a new Release instead of re-running this one"
-            exit 1
-          fi
-          exit_code=0
-          comparison=$(gh api "repos/$GITHUB_REPOSITORY/compare/$highest...$GITHUB_SHA" --jq .status) || exit_code=$?
-          if [ "$exit_code" -ne 0 ]; then
-            echo "::error::Could not compare $GITHUB_SHA with $highest (gh api exit $exit_code)"
-            exit 1
-          fi
-          if [ "$comparison" != "ahead" ]; then
-            echo "::error::$GITHUB_SHA is not ahead of the latest release $highest (compare status: $comparison); dispatch a new Release instead of re-running this one"
-            exit 1
-          fi
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Refuse a stale release
+        if: inputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: .github/scripts/check-release-is-newest.sh
+
       - name: Login to DockerHub
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
 
       - name: Docker image metadata
         id: metadata
