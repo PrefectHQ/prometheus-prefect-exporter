@@ -63,7 +63,15 @@ The exporter reports what it can see of its own completeness:
 - `prefect_exporter_stream_refused` is 1 while the server refuses the subscription, or while a
   self-hosted server has its outbound event stream disabled.
 - A restarted exporter starts its counters at zero and does not replay earlier events, so nothing is
-  counted twice; runs that ended while it was down are not counted.
+  counted twice; runs that ended while it was down are not counted, nor are counts the previous
+  process made after Prometheus last scraped it.
+
+To be told when counts may be incomplete, alert on these as well as `up`, which can stay at 1
+through a restart between two scrapes or while the event subscription is disconnected:
+
+- `changes(process_start_time_seconds{job="<exporter job>"}[1h]) > 0`: the exporter restarted.
+- `increase(prefect_exporter_stream_gap_seconds_total[1h]) > 0`: an outage outlasted the replay.
+- `prefect_exporter_stream_refused == 1`: the server refuses the subscription.
 
 It cannot see these losses:
 
@@ -72,6 +80,17 @@ It cannot see these losses:
   what it has written, so events in the last few seconds before an unplanned reconnect can be missed.
 - A copy of a terminal event that arrives more than `DUPLICATE_MEMORY_HOURS` after the first copy, or
   after a restart, counts again.
+- Counts made before Prometheus scrapes a series for the first time are not visible to
+  `increase()`, because the series' first sample is already above zero. After a restart the same
+  series continues and Prometheus credits the new counts as a counter reset, unless the new counter
+  reaches the old value before a scrape sees it lower. Both last until the next successful scrape,
+  and Prometheus's created-timestamp ingestion avoids both.
+- On Prefect Cloud, a replay returns at most about 5,500 events, so a workspace with more matching
+  flow-run events than that in the 2-minute replay window loses the rest after an unplanned
+  reconnect.
+- On a self-hosted server, a state-change event can be published before its database transaction
+  commits ([PrefectHQ/prefect#22654](https://github.com/PrefectHQ/prefect/issues/22654)); if the
+  transaction rolls back, the exporter counts a transition that never happened.
 
 `state_name` is text that flow code can set, so its number of values, and the counter's number of
 series, depends on your flows.
