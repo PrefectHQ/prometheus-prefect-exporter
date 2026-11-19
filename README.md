@@ -88,9 +88,10 @@ It cannot see these losses:
   visible to `increase()`, because its first sample is already above zero.
 - After a restart, if the new counter reaches the old process's last value before Prometheus scrapes
   it, `increase()` misses the reset and loses those counts.
-- Both happen only before the first successful scrape after a start. The exporter exposes created
-  timestamps (`_created` series), so a Prometheus that ingests them for this scrape format can
-  avoid both; check your Prometheus version and scrape settings.
+- The first loss can happen at any time, for each series that first appears; the second only before
+  the first successful scrape after a start. The exporter exposes created timestamps (`_created`
+  series), so a Prometheus that ingests them for this scrape format can avoid both; check your
+  Prometheus version and scrape settings.
 - On Prefect Cloud, a replay returns at most about 5,500 events, so a workspace with more matching
   flow-run events than that in the 2-minute replay window loses the rest after an unplanned
   reconnect.
