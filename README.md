@@ -277,10 +277,12 @@ PREFECT_INTEGRATION_API_URL=http://localhost:4200/api pytest -m integration
 ### Releasing
 
 Run the Release workflow from the Actions tab, or with
-`gh workflow run cut-release.yaml -R PrefectHQ/prometheus-prefect-exporter -f bump=minor`. It computes
-the next version from the latest tag, runs the tests, pushes the image, creates the GitHub release
-with generated notes, and then triggers the Helm chart release. Label a pull request `breaking` when
-it needs a major release, so the release notes group it with the other breaking changes.
+`gh workflow run cut-release.yaml -R PrefectHQ/prometheus-prefect-exporter -f bump=minor`.
+It computes the next version from the highest version tag, runs the tests, pushes the image,
+creates the GitHub release with generated notes, and then triggers the Helm chart release. The
+tests are the full suite, including the integration job against two API replicas on Redis. Label a
+pull request `breaking` when it needs a major release, so the release notes group it with the
+other breaking changes.
 
 ### Documentation
 

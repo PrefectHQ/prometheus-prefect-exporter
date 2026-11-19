@@ -51,7 +51,12 @@ jobs:
         env:
           BUMP: ${{ inputs.bump }}
         run: |
-          latest=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          existing=$(git tag --points-at "$GITHUB_SHA" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          if [ -n "$existing" ]; then
+            echo "::error::$GITHUB_SHA is already released as $existing"
+            exit 1
+          fi
+          latest=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
           if [ -z "$latest" ]; then
             echo "::error::No existing version tag to bump"
             exit 1
@@ -66,6 +71,7 @@ jobs:
               exit 1
               ;;
           esac
+          # guards a tag pushed while this run was in progress
           if git rev-parse --quiet --verify "refs/tags/$version" > /dev/null; then
             echo "::error::Tag $version already exists"
             exit 1
