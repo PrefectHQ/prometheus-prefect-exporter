@@ -1,0 +1,166 @@
+---
+name: Release
+run-name: Release (${{ inputs.bump }} bump)
+
+"on":
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to increase
+        type: choice
+        required: true
+        options:
+          - major
+          - minor
+          - patch
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Compute the next version
+    runs-on: ubuntu-latest
+    permissions:
+      # required to read from the repo
+      contents: read
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - name: Require the main branch
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::Releases are cut from main, not $REF"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # the version comes from the existing tags
+          fetch-depth: 0
+
+      - name: Compute the next version
+        id: next
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          existing=$(git tag --points-at "$GITHUB_SHA" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          if [ -n "$existing" ]; then
+            echo "::error::$GITHUB_SHA is already released as $existing"
+            exit 1
+          fi
+          latest=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+          if [ -z "$latest" ]; then
+            echo "::error::No existing version tag to bump"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$latest" "$GITHUB_SHA"; then
+            echo "::error::$GITHUB_SHA is behind the latest release $latest"
+            exit 1
+          fi
+          IFS=. read -r major minor patch <<< "$latest"
+          case "$BUMP" in
+            major) version="$((major + 1)).0.0" ;;
+            minor) version="$major.$((minor + 1)).0" ;;
+            patch) version="$major.$minor.$((patch + 1))" ;;
+            *)
+              echo "::error::Unknown bump: $BUMP"
+              exit 1
+              ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing **$version** ($BUMP bump from $latest)" >> "$GITHUB_STEP_SUMMARY"
+
+  tests:
+    needs: version
+    uses: ./.github/workflows/tests.yaml
+    permissions:
+      # required to read from the repo
+      contents: read
+
+  image:
+    needs: [version, tests]
+    uses: ./.github/workflows/release-build-deploy.yaml
+    with:
+      version: ${{ needs.version.outputs.version }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    permissions:
+      # required to read from the repo
+      contents: read
+
+  release:
+    name: Create the GitHub release
+    needs: [version, image]
+    runs-on: ubuntu-latest
+    permissions:
+      # required to create the tag and the release
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Refuse a stale release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: .github/scripts/check-release-is-newest.sh
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          gh release create "$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --generate-notes
+
+  chart:
+    needs: release
+    uses: ./.github/workflows/helm-chart-release.yaml
+    secrets:
+      PREFECT_CI_BOT_PUBLIC_CLIENT_ID: ${{ secrets.PREFECT_CI_BOT_PUBLIC_CLIENT_ID }}
+      PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY: ${{ secrets.PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY }}
+    # the called workflow mints its own app token for prefect-helm
+    permissions: {}
+
+  announce:
+    name: Announce the release
+    needs: [version, chart]
+    runs-on: ubuntu-latest
+    permissions: {}
+    # The release is already out by now, so a failed post must not mark the run failed.
+    # A failed post then shows only in this run; the failure notice fires only on failed runs.
+    continue-on-error: true
+    steps:
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_GHA_JOB_STATUS }}
+          webhook-type: incoming-webhook
+          errors: true
+          # https://api.slack.com/reference/messaging/attachments
+          payload: |
+            {
+              "attachments": [{
+                "pretext": ${{ toJSON(format(':rocket: prometheus-prefect-exporter {0} released', needs.version.outputs.version)) }},
+                "title": ${{ toJSON(needs.version.outputs.version) }},
+                "title_link": ${{ toJSON(format('https://github.com/{0}/releases/tag/{1}', github.repository, needs.version.outputs.version)) }},
+                "text": ${{ toJSON(format('Image: <https://hub.docker.com/r/prefecthq/prometheus-prefect-exporter/tags?name={0}|prefecthq/prometheus-prefect-exporter:{0}>, Chart: <https://github.com/PrefectHQ/prefect-helm/actions/workflows/prometheus-exporter-helm-release.yaml|prefect-helm chart run (dispatched)>', needs.version.outputs.version)) }},
+                "footer": ${{ toJSON(format('{0} | released by {1}', github.repository, github.actor)) }},
+                "footer_icon": "https://slack-imgs.com/?c=1&o1=wi32.he32.si&url=https%3A%2F%2Fslack.github.com%2Fstatic%2Fimg%2Ffavicon-neutral.png",
+                "color": "good"
+              }]
+            }

@@ -7,6 +7,7 @@ name: Tests
     branches:
       - main
   workflow_dispatch: {}
+  workflow_call: {}
 
 permissions: {}
 
@@ -84,7 +85,8 @@ jobs:
 
   integration-ha:
     name: integration (two API replicas on Redis)
-    if: github.event_name == 'workflow_dispatch'
+    # GitHub's docs do not say whether a called workflow sees the caller's event or workflow_call, so the release gate accepts either.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
     permissions:
       # required to read from the repo

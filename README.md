@@ -274,6 +274,19 @@ PREFECT_INTEGRATION_API_URL=http://localhost:4200/api pytest -m integration
 `tests/integration/compose.ha.yml` starts two API replicas on the Redis broker instead; point
 `PREFECT_INTEGRATION_API_URL` at `http://localhost:4280/api`.
 
+### Releasing
+
+Run the Release workflow from the Actions tab, or with
+`gh workflow run cut-release.yaml -R PrefectHQ/prometheus-prefect-exporter -f bump=minor`.
+It computes the next version from the highest version tag, runs the tests, pushes the image,
+creates the GitHub release with generated notes, triggers the Helm chart release, and then posts
+the release to Slack. The tests are the full suite, including the integration job against two API
+replicas on Redis. Label a pull request `breaking` when it needs a major release, so the release
+notes group it with the other breaking changes. If a job fails, use "Re-run failed jobs" on that
+run; "Re-run all jobs" and a new dispatch both refuse a commit that is already released.
+The Release workflow is the only way to publish an image or a Helm chart: pushing a tag or
+creating a release by hand in the GitHub UI publishes neither.
+
 ### Documentation
 
 Please make sure that your changes have been linted and the documentation has been updated. The easiest way to accomplish this is by installing [`pre-commit`](https://pre-commit.com/).

@@ -4,8 +4,7 @@ name: Notify on Failure
 "on":
   workflow_run:
     workflows:
-      - Build and Publish prometheus-prefect-exporter Image
-      - Trigger Downstream Helm Chart Release
+      - Release
     types: [completed]
 
 permissions: {}
