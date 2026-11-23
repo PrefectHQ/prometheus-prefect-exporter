@@ -11,6 +11,21 @@ EVENT_FILTER = {
     # Pull-step events are named prefect.flow-run.pull-step.executed and
     # .failed, so they are excluded by prefix.
     "exclude_prefix": ["prefect.flow-run.heartbeat", "prefect.flow-run.pull-step."],
+    # These events are never counted, but they use up the server's limited
+    # replay after a reconnect. Running and Retrying stay subscribed because
+    # open-source servers give run durations only through them.
+    "exclude_name": [
+        "prefect.flow-run.deleted",
+        "prefect.flow-run.Scheduled",
+        "prefect.flow-run.Late",
+        "prefect.flow-run.AwaitingRetry",
+        "prefect.flow-run.AwaitingConcurrencySlot",
+        "prefect.flow-run.Pending",
+        "prefect.flow-run.Submitting",
+        "prefect.flow-run.InfrastructurePending",
+        "prefect.flow-run.Paused",
+        "prefect.flow-run.Suspended",
+    ],
 }
 
 POLICY_VIOLATION = 1008

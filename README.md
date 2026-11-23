@@ -90,9 +90,15 @@ It cannot see these losses:
 - After a restart, if the new counter reaches the old process's last value before Prometheus scrapes
   it, `increase()` reads it as growth from the old value and misses that many counts. This can happen
   only before the first successful scrape after a start.
-- On Prefect Cloud, a replay returns at most about 5,500 events, so a workspace with more matching
-  flow-run events than that in the 2-minute replay window loses the rest after an unplanned
-  reconnect.
+- On Prefect Cloud, a replay returns at most about 5,500 events. Events the subscription leaves out
+  (next item) do not count toward the limit, so a workspace loses events after an unplanned
+  reconnect only if more than that many subscribed flow-run events happen in the 2-minute replay
+  window.
+- The subscription leaves out events by name: deleted, and the state names Scheduled, Late,
+  AwaitingRetry, AwaitingConcurrencySlot, Pending, Submitting, InfrastructurePending, Paused and
+  Suspended. A finished state given one of those names is not counted. On a self-hosted server, a
+  running state given one is not used as the start of the duration, so the duration is measured from
+  an earlier running state if there was one.
 - On a self-hosted server, a state-change event can be published before its database transaction
   commits ([PrefectHQ/prefect#22654](https://github.com/PrefectHQ/prefect/issues/22654)); if the
   transaction rolls back, the exporter counts a transition that never happened.

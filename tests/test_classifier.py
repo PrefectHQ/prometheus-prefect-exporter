@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from metrics.stream.classifier import FlowRunEventClassifier, TerminalLabels
+from metrics.stream.protocol import EVENT_FILTER
 
 FIXTURES = Path(__file__).parent / "fixtures" / "events"
 DAY = 24 * 3600
@@ -187,6 +188,57 @@ def test_non_terminal_and_non_flow_run_events_are_ignored(classifier):
     for event in (scheduled, pending, running, task_run, no_state):
         result = classifier.classify(event)
         assert (result.outcome, result.missing_run_count) == ("ignored", False)
+
+
+# Names outside the exclusion list are mapped too, so adding a RUNNING or finished name to that list
+# fails this test on an assertion rather than a KeyError.
+STATE_TYPE_OF_EVENT_NAME = {
+    "prefect.flow-run.deleted": None,
+    "prefect.flow-run.Scheduled": "SCHEDULED",
+    "prefect.flow-run.Late": "SCHEDULED",
+    "prefect.flow-run.AwaitingRetry": "SCHEDULED",
+    "prefect.flow-run.AwaitingConcurrencySlot": "SCHEDULED",
+    "prefect.flow-run.Pending": "PENDING",
+    "prefect.flow-run.Submitting": "PENDING",
+    "prefect.flow-run.InfrastructurePending": "PENDING",
+    "prefect.flow-run.Running": "RUNNING",
+    "prefect.flow-run.Retrying": "RUNNING",
+    "prefect.flow-run.Paused": "PAUSED",
+    "prefect.flow-run.Suspended": "PAUSED",
+    "prefect.flow-run.Cancelling": "CANCELLING",
+    "prefect.flow-run.Completed": "COMPLETED",
+    "prefect.flow-run.Cached": "COMPLETED",
+    "prefect.flow-run.Failed": "FAILED",
+    "prefect.flow-run.TimedOut": "FAILED",
+    "prefect.flow-run.Crashed": "CRASHED",
+    "prefect.flow-run.Cancelled": "CANCELLED",
+}
+
+
+def test_events_excluded_from_the_subscription_are_never_counted_or_timed(
+    classifier,
+):
+    [*_, completed] = _run_events("completed")
+    excluded = EVENT_FILTER["exclude_name"]
+    assert excluded
+
+    results = []
+    for name in excluded:
+        event = copy.deepcopy(completed)
+        event["event"] = name
+        state_type = STATE_TYPE_OF_EVENT_NAME[name]
+        if state_type is None:
+            del event["resource"]["prefect.state-type"]
+            del event["resource"]["prefect.state-name"]
+        else:
+            event["resource"]["prefect.state-type"] = state_type
+            event["resource"]["prefect.state-name"] = name.removeprefix(
+                "prefect.flow-run."
+            )
+        results.append(classifier.classify(event))
+
+    assert [r.outcome for r in results] == ["ignored"] * len(excluded)
+    assert len(classifier.running_times) == 0
 
 
 def test_duration_on_an_open_source_server_comes_from_the_running_event(

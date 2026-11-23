@@ -4,6 +4,13 @@
 
 Accepted
 
+## Update (2026-11-23): name exclusions in the subscription
+
+The subscription also leaves out, by exact name, `prefect.flow-run.deleted` and the standard
+scheduled, pending and paused state names, because they are never counted and they used up the
+server's limited replay after a reconnect. A finished or running state given one of those names is
+therefore not seen; the README lists this among the losses.
+
 ## Context
 
 Through version 4.2.0, the exporter computed its flow-run metrics from each run's state at the
