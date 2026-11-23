@@ -190,6 +190,8 @@ def test_non_terminal_and_non_flow_run_events_are_ignored(classifier):
         assert (result.outcome, result.missing_run_count) == ("ignored", False)
 
 
+# Names outside the exclusion list are mapped too, so adding a RUNNING or finished name to that list
+# fails this test on an assertion rather than a KeyError.
 STATE_TYPE_OF_EVENT_NAME = {
     "prefect.flow-run.deleted": None,
     "prefect.flow-run.Scheduled": "SCHEDULED",
