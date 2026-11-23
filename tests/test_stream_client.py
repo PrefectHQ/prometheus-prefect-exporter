@@ -128,6 +128,18 @@ def test_first_connect_refuses_backfill_and_reconnects_resume_from_the_last_even
                     "prefect.flow-run.heartbeat",
                     "prefect.flow-run.pull-step.",
                 ],
+                "exclude_name": [
+                    "prefect.flow-run.deleted",
+                    "prefect.flow-run.Scheduled",
+                    "prefect.flow-run.Late",
+                    "prefect.flow-run.AwaitingRetry",
+                    "prefect.flow-run.AwaitingConcurrencySlot",
+                    "prefect.flow-run.Pending",
+                    "prefect.flow-run.Submitting",
+                    "prefect.flow-run.InfrastructurePending",
+                    "prefect.flow-run.Paused",
+                    "prefect.flow-run.Suspended",
+                ],
             }
             until = datetime.fromisoformat(first["filter"]["occurred"]["until"])
             assert until - datetime.now(until.tzinfo) > timedelta(days=364)
