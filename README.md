@@ -94,6 +94,10 @@ It cannot see these losses:
   exporter subscribes to, which are finished-state and RUNNING-type flow-run events (deleted,
   pre-run and paused events are not subscribed to), so a workspace loses events after an unplanned
   reconnect only if more than that many of those happen in the 2-minute replay window.
+- The subscription leaves out events by name: deleted, and the state names Scheduled, Late,
+  AwaitingRetry, AwaitingConcurrencySlot, Pending, Submitting, InfrastructurePending, Paused and
+  Suspended. A finished state given one of those names is not counted, and a running state given one
+  gives no start time for the duration on a self-hosted server.
 - On a self-hosted server, a state-change event can be published before its database transaction
   commits ([PrefectHQ/prefect#22654](https://github.com/PrefectHQ/prefect/issues/22654)); if the
   transaction rolls back, the exporter counts a transition that never happened.
