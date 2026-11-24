@@ -60,11 +60,13 @@ The exporter reports what it can see of its own completeness:
   minutes on Prefect Cloud, 15 on a self-hosted server). It is not a part of the disconnected time:
   a reconnect that drops before it delivers ends the disconnected time but replays nothing, so the
   gap can be longer.
-- `prefect_exporter_stream_refused` is 1 while the server rejects the connection or the credentials
-  (a 4xx at the handshake, a failed authentication, or a 1008 close before any event), or while a
-  self-hosted server has its outbound event stream disabled. A server that rejects the event filter
-  is not reported here: it shows as `prefect_exporter_stream_reconnects_total` rising with reason
-  `server_close` or `error`.
+- `prefect_exporter_stream_refused` is set to 1 when a connect is refused: a 4xx at the handshake, a
+  failed authentication, or a 1008 close before any event and within 30 seconds of connecting. It
+  stays 1 until a subscription delivers. A refused replacement does not set it while the current
+  socket is still open. It is also set to 1, until the exporter restarts, when the exporter finds
+  that a self-hosted server has its outbound event stream disabled. A server that rejects the event
+  filter is not reported here, unless it closes with 1008: it shows as
+  `prefect_exporter_stream_reconnects_total` rising with reason `server_close` or `error`.
 - A restarted exporter starts its counters at zero and does not replay earlier events, so nothing is
   counted twice; runs that ended while it was down are not counted, nor are counts the previous
   process made after Prometheus last scraped it.
@@ -76,10 +78,8 @@ through a restart between two scrapes or while the event subscription is disconn
   down now. The gap metric below only grows once a later subscription delivers.
 - `changes(process_start_time_seconds{job="<exporter job>"}[1h]) > 0`: the exporter restarted.
 - `increase(prefect_exporter_stream_gap_seconds_total[1h]) > 0`: an outage outlasted the replay.
-- `prefect_exporter_stream_refused == 1`: the server rejects the connection or the credentials, or
-  has its outbound event stream disabled.
-- `sum without (reason) (increase(prefect_exporter_stream_reconnects_total{reason=~"server_close|error"}[30m])) > 10`:
-  the exporter keeps reconnecting, for example because the server rejects its subscription.
+- `prefect_exporter_stream_refused == 1`: the server refused a connect and no subscription has
+  delivered since, or the exporter found its outbound event stream disabled.
 
 It cannot see these losses:
 
@@ -248,7 +248,7 @@ The exporter's health:
 | Metric | Type | Meaning |
 | --- | --- | --- |
 | `prefect_exporter_stream_connected` | gauge | 1 while the event stream socket is open and answering pings |
-| `prefect_exporter_stream_refused` | gauge | 1 while the server rejects the connection or the credentials, or has its outbound event stream disabled |
+| `prefect_exporter_stream_refused` | gauge | Set to 1 when the server refuses a connect or the exporter finds its outbound event stream disabled (see "What the counts include and miss") |
 | `prefect_exporter_stream_last_event_timestamp_seconds` | gauge | When the last event arrived |
 | `prefect_exporter_stream_reconnects_total` | counter | Reconnects, by `reason` (`server_close`, `ping_timeout`, `error`) |
 | `prefect_exporter_stream_disconnected_seconds_total` | counter | Time without a subscription |
