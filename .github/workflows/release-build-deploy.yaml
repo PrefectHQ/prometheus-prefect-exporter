@@ -22,6 +22,8 @@ jobs:
       # required to read from the repo
       contents: read
     runs-on: ubuntu-latest
+    # only runs from main can use this environment, so a workflow on another branch cannot read the Docker Hub credentials
+    environment: release
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
