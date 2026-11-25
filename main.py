@@ -9,6 +9,21 @@ from metrics.config import Config
 from metrics.exporter import Exporter
 
 
+def with_health_endpoint(app):
+    """
+    Wrap a WSGI app so that GET /health answers 200 while the process is up.
+    """
+
+    def app_with_health(environ, start_response):
+        if environ["REQUEST_METHOD"] == "GET" and environ["PATH_INFO"] == "/health":
+            # Leaves out stream state: a restart because of it would lose counts.
+            start_response("200 OK", [("Content-Type", "text/plain; charset=utf-8")])
+            return [b"OK"]
+        return app(environ, start_response)
+
+    return app_with_health
+
+
 def metrics():
     """
     Main entry point for the PrefectMetrics exporter.
@@ -23,7 +38,8 @@ def metrics():
         logger.warning("OFFSET_MINUTES is no longer used and is ignored")
 
     # Serve /metrics first: nothing below waits on the Prefect API.
-    start_http_server(config.metrics_port, config.metrics_addr)
+    httpd, _ = start_http_server(config.metrics_port, config.metrics_addr)
+    httpd.set_app(with_health_endpoint(httpd.get_app()))
     logger.info(f"Exporter listening on {config.metrics_addr}:{config.metrics_port}")
     exporter = Exporter(config, REGISTRY, logger)
     exporter.start()
