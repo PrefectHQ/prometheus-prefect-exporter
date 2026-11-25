@@ -111,6 +111,24 @@ def test_partial_result_is_published_after_failure_is_reported(monkeypatch):
     assert _value(registry, "prefect_test_value") == 3
 
 
+def test_poll_that_raises_after_a_good_one_reports_failure_and_keeps_its_snapshot(
+    monkeypatch,
+):
+    registry = CollectorRegistry()
+    results = iter([PollResult((_family(7),), True)])
+    # The second call raises StopIteration.
+    loop = _loop(lambda: next(results), registry)
+    registry.register(PolledMetricsCollector([loop]))
+    loop.poll_once()
+    recorded = _record_value_at_each_success_set(loop, registry, monkeypatch)
+
+    loop.poll_once()
+
+    assert recorded == [(0, 7)]
+    assert _value(registry, "prefect_exporter_poll_success", poller="runs") == 0
+    assert _value(registry, "prefect_test_value") == 7
+
+
 def test_poll_that_lost_data_keeps_the_previous_snapshot():
     registry = CollectorRegistry()
     results = iter([PollResult((_family(7),), True), PollResult((_family(3),), False)])
