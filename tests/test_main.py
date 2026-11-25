@@ -91,8 +91,11 @@ def request_exporter(monkeypatch, collector):
             thread.join(timeout=5)
 
 
-def test_health_answers_ok_without_collecting_metrics(request_exporter, collector):
-    assert request_exporter("GET", "/health") == (
+@pytest.mark.parametrize("path", ["/health", "/health?x=1"])
+def test_health_answers_ok_without_collecting_metrics(
+    request_exporter, collector, path
+):
+    assert request_exporter("GET", path) == (
         200,
         "text/plain; charset=utf-8",
         b"OK",
@@ -114,4 +117,11 @@ def test_health_refuses_other_methods(request_exporter, collector, method):
     status, _, _ = request_exporter(method, "/health")
 
     assert status == 405
+    assert collector.collections == 0
+
+
+def test_health_answers_options_with_an_empty_body(request_exporter, collector):
+    status, _, body = request_exporter("OPTIONS", "/health")
+
+    assert (status, body) == (200, b"")
     assert collector.collections == 0
