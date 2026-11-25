@@ -73,7 +73,9 @@ class PollLoop(threading.Thread):
         finished = self.clock()
         self.health.poll_duration.labels(self.poller).observe(finished - started)
         complete = result is not None and result.complete
-        self.health.poll_success.labels(self.poller).set(1 if complete else 0)
+        success = self.health.poll_success.labels(self.poller)
+        if not complete:
+            success.set(0)
 
         if result is None:
             return
@@ -83,6 +85,9 @@ class PollLoop(threading.Thread):
             self.logger.warning(
                 "Poll %s lost data; serving the previous result", self.poller
             )
+        if complete:
+            # Set after the snapshot, so a reader of 1 finds the results.
+            success.set(1)
 
     def _snapshot_is_stale(self, now: float) -> bool:
         if self.snapshot is None:
