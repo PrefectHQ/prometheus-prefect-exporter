@@ -141,7 +141,7 @@ def _register_oss_api(url, stream_out_enabled=True):
     def listing(items):
         def callback(request):
             body = json.loads(request.body)
-            return (200, {}, json.dumps(items if body.get("offset") == 0 else []))
+            return (200, {}, json.dumps([] if body.get("offset") else items))
 
         return callback
 
