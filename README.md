@@ -15,6 +15,9 @@ scrape interval works. The exporter reads Prefect on its own schedule:
 - Deployments, flows, work pools, work queues and recent failed runs are polled every 5 minutes
   (`INVENTORY_POLL_INTERVAL_SECONDS`).
 
+`GET /health` answers 200 while the process is up and does not report on the event stream; use the
+`prefect_exporter_stream_*` metrics for that.
+
 Upgrading from version 4? Read the [migration note](./docs/migrating-to-5.md): three flow-run metrics
 were replaced.
 
