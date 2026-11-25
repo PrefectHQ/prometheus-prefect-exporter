@@ -622,17 +622,16 @@ def test_a_non_json_auth_reply_is_retried_and_the_stream_recovers():
         async with FakeEventsServer() as server:
             server.auth_reply = "<html>proxy error</html>"
             async with Harness(server.port) as harness:
-                await wait_until(lambda: server.connections >= 2)
-                assert harness.task.done() is False
-                server.auth_reply = {"type": "auth_success"}
-                server.scripts = [_hold_after([TERMINALS[0]])]
-                await wait_until(lambda: harness.completed_count() == 1)
-                assert (
-                    harness.value(
+                await wait_until(
+                    lambda: harness.value(
                         "prefect_exporter_stream_reconnects_total", reason="error"
                     )
                     >= 2
                 )
+                assert harness.task.done() is False
+                server.auth_reply = {"type": "auth_success"}
+                server.scripts = [_hold_after([TERMINALS[0]])]
+                await wait_until(lambda: harness.completed_count() == 1)
 
     run(scenario())
 

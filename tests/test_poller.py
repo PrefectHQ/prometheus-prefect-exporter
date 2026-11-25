@@ -69,6 +69,66 @@ def test_complete_poll_publishes_and_reports_success():
     )
 
 
+def _record_value_at_each_success_set(loop, registry, monkeypatch):
+    gauge = loop.health.poll_success.labels("runs")
+    original = gauge.set
+    recorded = []
+
+    def record_then_set(success):
+        recorded.append((success, _value(registry, "prefect_test_value")))
+        original(success)
+
+    monkeypatch.setattr(gauge, "set", record_then_set)
+    return recorded
+
+
+def test_complete_result_is_published_before_success_is_reported(monkeypatch):
+    registry = CollectorRegistry()
+    results = iter([PollResult((_family(7),), True), PollResult((_family(8),), True)])
+    loop = _loop(lambda: next(results), registry)
+    registry.register(PolledMetricsCollector([loop]))
+    recorded = _record_value_at_each_success_set(loop, registry, monkeypatch)
+
+    loop.poll_once()
+    loop.poll_once()
+
+    assert recorded == [(1, 7), (1, 8)]
+
+
+def test_partial_result_is_published_after_failure_is_reported(monkeypatch):
+    registry = CollectorRegistry()
+    now = [0.0]
+    results = iter([PollResult((_family(7),), True), PollResult((_family(3),), False)])
+    loop = _loop(lambda: next(results), registry, clock=lambda: now[0], interval=60)
+    registry.register(PolledMetricsCollector([loop]))
+    loop.poll_once()
+    recorded = _record_value_at_each_success_set(loop, registry, monkeypatch)
+    now[0] = 181.0
+
+    loop.poll_once()
+
+    assert recorded == [(0, 7)]
+    assert _value(registry, "prefect_test_value") == 3
+
+
+def test_poll_that_raises_after_a_good_one_reports_failure_and_keeps_its_snapshot(
+    monkeypatch,
+):
+    registry = CollectorRegistry()
+    results = iter([PollResult((_family(7),), True)])
+    # The second call raises StopIteration.
+    loop = _loop(lambda: next(results), registry)
+    registry.register(PolledMetricsCollector([loop]))
+    loop.poll_once()
+    recorded = _record_value_at_each_success_set(loop, registry, monkeypatch)
+
+    loop.poll_once()
+
+    assert recorded == [(0, 7)]
+    assert _value(registry, "prefect_exporter_poll_success", poller="runs") == 0
+    assert _value(registry, "prefect_test_value") == 7
+
+
 def test_poll_that_lost_data_keeps_the_previous_snapshot():
     registry = CollectorRegistry()
     results = iter([PollResult((_family(7),), True), PollResult((_family(3),), False)])
